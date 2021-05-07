@@ -162,11 +162,3 @@ def create_pdf(files, filename, create_toc=True):
         filename = filename + ".pdf"
     pdf.output(filename, 'F')
 
-
-def main():
-    files = [file_path1, file_path2, file_path3, file_path4]
-    create_pdf(files, filename="testi.pdf")
-
-
-if __name__ == "__main__":
-    main()

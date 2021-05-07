@@ -8,6 +8,9 @@
 *.ttf
 *.pkl
 *.iml
+testing_things.py
+*.pdf
+esimerkit
 ### Copy-pasted from python gitignore:
 
 
