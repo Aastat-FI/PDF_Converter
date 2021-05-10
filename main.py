@@ -2,47 +2,8 @@ import os
 import re
 from pdf_template import PDF
 import numpy as np
-
-
-def get_text_from_file(file_path):
-    """
-    Returns contents of text file as a list
-    :param file_path: Absolute path to the file
-    :return: Contents of the file as a string
-    """
-    file = open(file_path, 'r')
-    text = file.read()
-    file.close()
-    return text
-
-
-def is_empty_line(text):
-    """
-    Helper function to check if there is any symbols on given line
-    :param text: Python string
-    :return: Boolean indicating emptiness of string
-    """
-    return len(text.strip()) == 0
-
-
-def contains_data_tables(text_block):
-    """
-    Helper function to determine if there is data tables in the given text block
-    :param text_block: Python string. Data block are given from other functions
-    :return: Returns boolean if there is data tables in the text block
-    """
-    is_useless = "//" in text_block or "txt" in text_block
-    return not is_useless
-
-
-def remove_empty_lines(block_of_text):
-    """
-    Helper function to delete all the empty lines from string
-    :param block_of_text: String
-    :return: Given string without empty lines
-    """
-    text = os.linesep.join([s for s in block_of_text.splitlines() if s])
-    return text
+from helper_functions import *
+from itertools import accumulate
 
 
 def get_program_info(text):
@@ -76,7 +37,6 @@ def get_chapter_name(text):
 
 
 def get_toc(files):
-    # TODO: implement cumsum without numpy so we no need to import it. Itertools may have something
     """
     Creates a dictionary that has all the chapter names and page numbers from the list of files
     :param files: list of absolute paths of files
@@ -90,7 +50,9 @@ def get_toc(files):
         chapters.append(chapter_name)
         num_pages = len(get_text_blocks(text))
         pages.append(num_pages)
-    chapter_starts = np.cumsum(pages) + 1
+    pages[0] += 1
+    chapter_starts = list(accumulate(pages))
+
     toc = dict(zip(chapters, chapter_starts))
     return toc
 
@@ -162,3 +124,15 @@ def create_pdf(files, filename, create_toc=True):
         filename = filename + ".pdf"
     pdf.output(filename, 'F')
 
+def create_combined_rtf(rtf_files, save_filename):
+    main_str = ""
+    for file in rtf_files:
+        main_str += get_text_from_file(file)
+
+    if save_filename.split(".")[-1] != "rtf":
+        save_filename += ".rtf"
+
+    with open(save_filename, 'w') as file:
+        file.write(main_str)
+    print(f'File saved as {save_filename}')
+    return save_filename
