@@ -1,7 +1,5 @@
-import os
 import re
 from pdf_template import PDF
-import numpy as np
 from helper_functions import *
 from itertools import accumulate
 
@@ -124,15 +122,4 @@ def create_pdf(files, filename, create_toc=True):
         filename = filename + ".pdf"
     pdf.output(filename, 'F')
 
-def create_combined_rtf(rtf_files, save_filename):
-    main_str = ""
-    for file in rtf_files:
-        main_str += get_text_from_file(file)
 
-    if save_filename.split(".")[-1] != "rtf":
-        save_filename += ".rtf"
-
-    with open(save_filename, 'w') as file:
-        file.write(main_str)
-    print(f'File saved as {save_filename}')
-    return save_filename
