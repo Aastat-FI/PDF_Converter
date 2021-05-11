@@ -44,13 +44,13 @@ class PDF(FPDF):
         self.ln(10)
         first_item = True
         for chapter_name, page_number in contents.items():
+            link = self.add_link()
+            self.set_link(link, page=page_number)
             self.set_x(PARAMETERS["TOC x-offset"])
             dots = self._get_toc_dots(chapter_name, first_item)
             if first_item:
                 first_item = False
-                self.cell(0, 9, f'{chapter_name}{dots}{page_number}')
-            else:
-                self.cell(0, 9, f'{chapter_name}{dots}{page_number}')
+            self.cell(0, 9, f'{chapter_name}{dots}{page_number}', link=link)
             self.ln(8)
 
     def header(self):
@@ -61,7 +61,7 @@ class PDF(FPDF):
         self.set_font('Courier New', '', 8)
         self.set_y(PARAMETERS["Header y-offset"])
         w = self.get_string_width(self.title) + 6
-        self.set_x((300 - w) / 2)
+        self.set_x((self.w - w) / 2)
         self.cell(w, 9, self.title)
         self.ln(PARAMETERS["Distance between header and chapter title"])
 
@@ -90,9 +90,15 @@ class PDF(FPDF):
         :param length: Length of the line.
         :return:
         """
-        empty_line = "_" * length
-        w = self.get_string_width(empty_line) + 6
-        self.set_x((300 - w) / 2)
+        empty_line = "_"
+        if self.cur_orientation == "L":
+            empty_line = "_" * 123
+            w = self.get_string_width(empty_line) + 6
+            self.set_x((self.w - w) / 2)
+        if self.cur_orientation == "P":
+            empty_line = "_" * 70
+            w = self.get_string_width(empty_line) + 6
+            self.set_x((self.w - w) / 2)
         self.cell(0, 6, empty_line)
         self.ln(1)
 
@@ -115,7 +121,7 @@ class PDF(FPDF):
         """
         self.set_font('Courier New', '', 8)
         w = self.get_string_width(label) + 6
-        self.set_x((300 - w) / 2)
+        self.set_x((self.w - w) / 2)
         self.cell(0, 6, label)
         self.ln(PARAMETERS["Distance between chapter title and chapter body"])
         self._add_empty_line()
