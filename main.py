@@ -1,4 +1,7 @@
+import os
 import re
+from PyPDF2.merger import PdfFileMerger
+import unused_functions
 from pdf_template import PDF
 from helper_functions import *
 from itertools import accumulate
@@ -89,7 +92,7 @@ def get_text_blocks(text):
     return blocks
 
 
-def create_pdf(files, filename, create_toc=True):
+def create_pdf_from_txt_files(files, filename, create_toc=True):
     """
     High level function that connects several functions and custom pdf class to output a pdf that connects all the
     text files.
@@ -99,13 +102,13 @@ def create_pdf(files, filename, create_toc=True):
     :param files: List of absolute paths of text files that we want to parse to a pdf
     :return:
     """
-    pdf = PDF("L")
+    pdf = PDF()
     pdf.set_author('Not Jules Verne')
     title_set = False
     pdf.set_title("")
     if create_toc:
         toc = get_toc(files)
-        pdf.table_of_contents(toc)
+        pdf.table_of_contents(toc, orientation="P")
 
     for file in files:
         text = get_text_from_file(file)
@@ -123,3 +126,16 @@ def create_pdf(files, filename, create_toc=True):
     pdf.output(filename, 'F')
 
 
+def get_pdf_from_rtfs(file_list, master_file_name="master.pdf"):
+    pdfs = []
+    for file in file_list:
+        changed_file = unused_functions.change_filetype(file, "pdf")
+        pdfs.append(changed_file)
+    merger = PdfFileMerger()
+    for file in pdfs:
+        merger.append(file)
+    merger.write(master_file_name)
+    print(f'file saved as {master_file_name}')
+    merger.close()
+    for file in pdfs:
+        os.remove(file)
