@@ -1,6 +1,12 @@
 import os
 import re
+import math
+import time
+from pathlib import Path
+
 from PyPDF2.merger import PdfFileMerger
+from PyPDF2.pdf import PdfFileReader
+import helper_functions
 import unused_functions
 from pdf_template import PDF
 from helper_functions import *
@@ -51,10 +57,7 @@ def get_toc(files):
         chapters.append(chapter_name)
         num_pages = len(get_text_blocks(text))
         pages.append(num_pages)
-    pages[0] += 1
-    chapter_starts = list(accumulate(pages))
-
-    toc = dict(zip(chapters, chapter_starts))
+    toc = compile_toc(chapters, pages)
     return toc
 
 
@@ -132,10 +135,31 @@ def get_pdf_from_rtfs(file_list, master_file_name="master.pdf"):
         changed_file = unused_functions.change_filetype(file, "pdf")
         pdfs.append(changed_file)
     merger = PdfFileMerger()
+    pages = []
+    chapters = []
     for file in pdfs:
-        merger.append(file)
-    merger.write(master_file_name)
+        read_pdf = PdfFileReader(file)
+        txt = read_pdf.getPage(0)
+        page_content = txt.extractText()
+        chapter = helper_functions.get_chapter_from_pdf_txt(page_content)
+
+        pages.append(read_pdf.getNumPages())
+        chapters.append(chapter)
+        merger.append(fileobj=file)
+
+    ### Creating toc
+    #toc = compile_toc(chapters, pages)
+
+    #pdf = PDF()
+    #pdf.set_title("")
+    #pdf.table_of_contents(toc, orientation="P")
+    #pdf.output("toc.pdf", 'F')
+    #time.sleep(2)
+    #merger.append("toc.pdf")
+    with Path(master_file_name).open("wb") as output_file:
+        merger.write(output_file)
+
     print(f'file saved as {master_file_name}')
-    merger.close()
-    for file in pdfs:
-        os.remove(file)
+    #for file in pdfs:
+    #    os.remove(file)
+
