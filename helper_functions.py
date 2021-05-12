@@ -1,4 +1,12 @@
 import os
+import re
+import math
+from itertools import accumulate
+
+import PyPDF2
+
+
+chapter_from_pdf_re = "[\d]{4}[A-z0-9\\ /-:-().]*Program"
 
 
 def get_text_from_file(file_path):
@@ -41,21 +49,29 @@ def remove_empty_lines(block_of_text):
     return text
 
 
-def create_combined_rtf(rtf_files, save_filename="combined.rtf"):
-    """
-    Appends multiple rtf files together
-    :param rtf_files: list of absolute filepaths of rtf files
-    :param save_filename: filename to save the file to
-    :return: absolute path to created file
-    """
-    main_str = ""
-    for file in rtf_files:
-        main_str += get_text_from_file(file)
+def get_chapter_from_pdf_txt(pdf_text):
+    txt = repr(pdf_text)
+    found = re.findall(pattern=chapter_from_pdf_re, string=txt)[0]
+    found = found.replace("\\n", "")
+    found = found.replace("Program", "")
+    found = re.sub("[\\d]{4}", "", found)
+    found = found.strip()
+    return found
 
-    if save_filename.split(".")[-1] != "rtf":
-        save_filename += ".rtf"
+def compile_toc(chapters, pages):
+    """
+    Creates table of contents library from chapters and lengths of chapters
+    :param chapters: List of chapter names
+    :param pages: List of how many chapters each page takes
+    :return: Table of contents dictionary
+    """
+    toc_pages = math.ceil(len(chapters) / 20)
+    pages.insert(0, toc_pages)
+    pages = list(accumulate(pages))
+    pages = [x + 1 for x in pages]
+    chapter_starts = pages[0:-1]
+    toc = dict(zip(chapters, chapter_starts))
+    return toc
 
-    with open(save_filename, 'w') as file:
-        file.write(main_str)
-    print(f'File saved as {save_filename}')
-    return save_filename
+
+
