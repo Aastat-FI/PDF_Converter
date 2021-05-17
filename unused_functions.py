@@ -1,23 +1,8 @@
-import sys
-import comtypes.client
-import time
-import os
-from PyQt5 import uic
-from PyQt5.QtWidgets import QApplication
-import argparse
 import pandas as pd
-import re
 from main import *
 word_regex = "[A-z/-]+[0-9]{0,1}[\s]?[\(]?[\w]*[\s]{0,1}[\w]*[\)]?"
 numbers_regex = "(?<!Q)[\d.]+\s?\(?[\d.]+\)?"
-filetypes = {
-    "rtf": 6,
-    "pdf": 17,
-    "docx": 16,
-    "doc": 0,
-    "html": 8,
-    "xml": 12
-}
+
 
 
 def get_dataframe_from_txt(text):
@@ -43,52 +28,6 @@ def get_dataframe_from_txt(text):
     }
     df = pd.DataFrame(accumulated)
     return df
-
-
-def change_filetype(input_file, output_filetype, backend_converter='word', output_file=None):
-    """
-    Converts the input file to requested filetype and saves it as specified output file. Uses Microsoft Word backend but
-        it is possible to include openoffice support
-    :param input_file: Absolute path of the current file
-    :param output_filetype: Filetype to convert the input file. Supported filetypes:
-        rtf, pdf, docx, doc, html, xml
-    :param output_file: name and path for output file. If left blank saves in the same folder with same name as input
-        file
-    :param backend_converter: What tool to use to convert the files. Options: word or libreoffice
-    :return: Does not return anything
-    """
-    if output_file is None:
-        filename = input_file.split(".")[-1]
-        output_file = filename + "." + output_filetype
-    if backend_converter == 'word':
-        if output_filetype not in filetypes:
-            raise ValueError("Output filetype not found in supported filetypes.")
-        try:
-            word_backend = comtypes.client.CreateObject("Word.Application")
-            word_backend.Visible = False
-        except:
-            print("Error setting up Word application")
-            return None
-        try:
-            document = word_backend.Documents.Open(input_file)
-        except:
-            print("Error opening file: format not supported or file not found")
-            word_backend.Quit()
-            return None
-
-        time.sleep(2)
-        format_number = filetypes[output_filetype]
-        document.SaveAs(output_file, FileFormat=format_number)
-        document.Close()
-        word_backend.Quit()
-
-    elif backend_converter == "libre-office":
-        os.system(f'soffice --headless --convert-to {output_filetype} {input_file}')
-        # os.system(f'libreoffice --headless --convert-to {output_filetype} {input_file}')
-        # os.system(f'libreoffice6.3 --headless --convert-to {output_filetype} {input_file}')
-
-    else:
-        raise ValueError("Not valid backend converter")
 
 
 def get_data_from_block(data):

@@ -245,6 +245,18 @@ def change_filetype(input_file, output_filetype, backend_converter='word', outpu
     :param backend_converter: What tool to use to convert the files. Options: word or libreoffice
     :return: Does not return anything
     """
+
+    filetypes = {
+        "rtf": 6,
+        "pdf": 17,
+        "docx": 16,
+        "doc": 0,
+        "html": 8,
+        "xml": 19,
+        "txt": 7,
+        "windows_txt": 3
+    }
+
     if output_file_name is None:
         filename = input_file.split(".")[0]
         output_file_name = filename + "." + output_filetype
