@@ -1,4 +1,3 @@
-import os
 import time
 import comtypes.client
 from PyPDF2.merger import PdfFileMerger
@@ -6,8 +5,6 @@ from PyPDF2.pdf import PdfFileReader, PdfFileWriter
 import helper_functions
 from pdf_template import PDF
 from helper_functions import *
-
-from unused_functions import filetypes
 
 
 def get_program_info(text):
@@ -196,7 +193,6 @@ def create_pdf_from_rtf_files(file_list, master_file_name, create_toc=True, toc_
         with open(master_file_name, 'wb') as out:
             writer.write(out)
 
-
         tmp_to_delete += ["tmp.pdf"] + ["tmp2.pdf"] + ["toc.pdf"]
 
     for file in tmp_to_delete:
@@ -290,5 +286,4 @@ def change_filetype(input_file, output_filetype, backend_converter='word', outpu
     else:
         raise ValueError("Not valid backend converter")
 
-    print(f"File saved as {output_file_name}")
     return output_file_name
