@@ -1,16 +1,13 @@
 import os
-import re
-import math
 import time
-from pathlib import Path
-
+import comtypes.client
 from PyPDF2.merger import PdfFileMerger
-from PyPDF2.pdf import PdfFileReader
+from PyPDF2.pdf import PdfFileReader, PdfFileWriter
 import helper_functions
-import unused_functions
 from pdf_template import PDF
 from helper_functions import *
-from itertools import accumulate
+
+from unused_functions import filetypes
 
 
 def get_program_info(text):
@@ -43,9 +40,10 @@ def get_chapter_name(text):
             return row.strip()
 
 
-def get_toc(files):
+def get_toc(files, toc_orientation):
     """
     Creates a dictionary that has all the chapter names and page numbers from the list of files
+    :param toc_orientation: Paramater that specifies table of contents orientation
     :param files: list of absolute paths of files
     :return: returns library where keys are chapter names and values are page numbers where they start
     """
@@ -57,7 +55,7 @@ def get_toc(files):
         chapters.append(chapter_name)
         num_pages = len(get_text_blocks(text))
         pages.append(num_pages)
-    toc = compile_toc(chapters, pages)
+    toc = compile_toc(chapters, pages, orientation=toc_orientation)
     return toc
 
 
@@ -95,7 +93,7 @@ def get_text_blocks(text):
     return blocks
 
 
-def create_pdf_from_txt_files(files, filename, create_toc=True):
+def create_pdf_from_txt_files(files, filename, create_toc=True, toc_orientation="P"):
     """
     High level function that connects several functions and custom pdf class to output a pdf that connects all the
     text files.
@@ -106,12 +104,11 @@ def create_pdf_from_txt_files(files, filename, create_toc=True):
     :return:
     """
     pdf = PDF()
-    pdf.set_author('Not Jules Verne')
     title_set = False
     pdf.set_title("")
     if create_toc:
-        toc = get_toc(files)
-        pdf.table_of_contents(toc, orientation="P")
+        toc = get_toc(files, toc_orientation)
+        pdf.table_of_contents(toc, orientation=toc_orientation)
 
     for file in files:
         text = get_text_from_file(file)
@@ -129,10 +126,19 @@ def create_pdf_from_txt_files(files, filename, create_toc=True):
     pdf.output(filename, 'F')
 
 
-def get_pdf_from_rtfs(file_list, master_file_name="master.pdf"):
+def create_pdf_from_rtf_files(file_list, master_file_name, create_toc=True, toc_orientation="P"):
+    """
+
+    :param file_list: List of rtf files
+    :param master_file_name: File name to be created
+    :param create_toc: Boolean indicating if the user wants to create toc
+    :param toc_orientation: Orientation of table of contents
+    :return:
+    """
+    tmp_to_delete = []
     pdfs = []
     for file in file_list:
-        changed_file = unused_functions.change_filetype(file, "pdf")
+        changed_file = change_filetype(file, "pdf")
         pdfs.append(changed_file)
     merger = PdfFileMerger()
     pages = []
@@ -146,20 +152,131 @@ def get_pdf_from_rtfs(file_list, master_file_name="master.pdf"):
         pages.append(read_pdf.getNumPages())
         chapters.append(chapter)
         merger.append(fileobj=file)
+    if not create_toc:
+        merger.write(master_file_name)
+    else:
+        merger.write("tmp.pdf")
+    merger.close()
+    tmp_to_delete += pdfs
+    if create_toc:
+        ### Creates table of contents pdf
+        toc = compile_toc(chapters, pages, orientation=toc_orientation)
+        pdf = PDF()
+        pdf.set_title("")
+        pdf.table_of_contents(toc, orientation=toc_orientation, create_hyperlink=False)
+        pdf.output("toc.pdf", 'F')
+        link_locations = pdf.get_link_locations()
+        pdf.close()
+        time.sleep(2)
 
-    ### Creating toc
-    #toc = compile_toc(chapters, pages)
+        link_locations = [change_coordinates(x, toc_orientation) for x in link_locations]  # Change the coordinate
 
-    #pdf = PDF()
-    #pdf.set_title("")
-    #pdf.table_of_contents(toc, orientation="P")
-    #pdf.output("toc.pdf", 'F')
-    #time.sleep(2)
-    #merger.append("toc.pdf")
-    with Path(master_file_name).open("wb") as output_file:
-        merger.write(output_file)
+        page_locations = list(toc.values())
 
-    print(f'file saved as {master_file_name}')
-    #for file in pdfs:
-    #    os.remove(file)
+        merger = PdfFileMerger()
+        merger.append("toc.pdf")
+        merger.append("tmp.pdf")
+        merger.write("tmp2.pdf")
+        merger.close()
 
+        ### Create hyperlinks
+        reader = PdfFileReader("tmp2.pdf")
+        writer = PdfFileWriter()
+        for i in range(reader.getNumPages()):
+            page = reader.getPage(i)
+            writer.addPage(page)
+        for i in range(len(link_locations)):
+            toc_page = 1
+            if toc_orientation == "P":
+                toc_page = math.floor(i / 27)
+            if toc_orientation == "L":
+                toc_page = math.floor(i / 17)
+            writer.addLink(pagenum=toc_page, pagedest=page_locations[i] - 1, rect=link_locations[i], fit="/Fit",
+                           border=[0, 0, 0])
+        with open(master_file_name, 'wb') as out:
+            writer.write(out)
+
+
+        tmp_to_delete += ["tmp.pdf"] + ["tmp2.pdf"] + ["toc.pdf"]
+
+    for file in tmp_to_delete:
+        try:
+            os.remove(file)
+        except:
+            path = os.path.abspath(".")
+            file = path + "/" + file
+            os.remove(file)
+
+
+def change_coordinates(arr, orientation):
+    """
+    Changes the coordinate system from [XUL, YUL, WIDTH, HEIGHT] to [XLL, YLL, XUR, YUR]. Original origo is at the top
+    left corner of the page, new one is at the bottom left corner of the page. For some reason x axis is stretched
+    out a bit so I fix it by multiplying it byt correction factor denoted by x_cor_factor
+    :param arr: Original coordinates
+    :param orientation: Page orientation
+    :return:
+    """
+    paper_h, paper_w = 841.89, 595.89
+    x_cor_factor = 1.026
+    new = [0, 0, 0, 0]
+    new[0] = arr[0] * x_cor_factor
+    new[2] = (arr[0] + arr[2]) * x_cor_factor
+    if orientation == "P":
+        new[1] = paper_h - arr[1] - arr[3]
+        new[3] = new[1] - arr[3]
+    elif orientation == "L":
+        new[1] = paper_w - arr[1] - arr[3]
+        new[3] = new[1] - arr[3]
+    else:
+        raise ValueError("Unknown page orientation")
+    return new
+
+
+def change_filetype(input_file, output_filetype, backend_converter='word', output_file_name=None):
+    """
+    Converts the input file to requested filetype and saves it as specified output file. Uses Microsoft Word backend but
+        it is possible to include openoffice support
+    :param input_file: Absolute path of the current file
+    :param output_filetype: Filetype to convert the input file. Supported filetypes:
+        rtf, pdf, docx, doc, html, xml
+    :param output_file_name: name and path for output file. If left blank saves in the same folder with same name as input
+        file
+    :param backend_converter: What tool to use to convert the files. Options: word or libreoffice
+    :return: Does not return anything
+    """
+    if output_file_name is None:
+        filename = input_file.split(".")[0]
+        output_file_name = filename + "." + output_filetype
+    if backend_converter == 'word':
+        if output_filetype not in filetypes:
+            raise ValueError("Output filetype not found in supported filetypes.")
+        try:
+            word_backend = comtypes.client.CreateObject("Word.Application")
+            word_backend.Visible = False
+        except:
+            print("Error setting up Word application")
+            return None
+        try:
+            document = word_backend.Documents.Open(input_file)
+        except:
+            print("Error opening file: format not supported or file not found")
+            word_backend.Quit()
+            return None
+
+        time.sleep(2)
+        format_number = filetypes[output_filetype]
+        document.SaveAs(output_file_name, FileFormat=format_number)
+        document.Close()
+        word_backend.Quit()
+
+    elif backend_converter == "libre-office":
+        os.system(f'soffice --headless --convert-to {output_filetype} {input_file}')
+        # os.system(f'libreoffice --headless --convert-to {output_filetype} {input_file}')
+        # os.system(f'libreoffice6.3 --headless --convert-to {output_filetype} {input_file}')
+
+    else:
+        raise ValueError("Not valid backend converter")
+
+    print(f"File saved as {output_file_name}")
+    return output_file_name
