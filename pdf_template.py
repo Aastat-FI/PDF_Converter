@@ -26,16 +26,19 @@ class PDF(FPDF):
         self.footer_text = ""
         path_to_font = os.path.dirname(__file__) + "\\fonts\\CourierNewRegular.ttf"
         path_to_font = "CourierNewRegular.ttf"
-        self.add_font('Courier New', '', "CourierNewRegular.ttf", uni=True)
+        self.add_font('Courier New', '', path_to_font, uni=True)
+        self.link_locations = []
 
-    def table_of_contents(self, contents, orientation):
+    def table_of_contents(self, contents, orientation, create_hyperlink=True):
         """
         Creates a table of contents page at the first page.
-        :param orientation:
+        :param create_hyperlink: Boolean indicating if we want to create hyperlinks to toc items
+        :param orientation: Page orientation. Values "P" or "L"
         :param contents: Dictionary where keys are chapter names and values are page numbers where chapter starts
         :return:
         """
         #  TODO: figure out why there is a need to use "Hack" to get toc items working
+        self.set_auto_page_break(True, margin=40)
         self.add_page(orientation=orientation)
         self.set_font('Courier New', '', 16)
         self.set_x(PARAMETERS["TOC x-offset"])
@@ -44,14 +47,23 @@ class PDF(FPDF):
         self.ln(10)
         first_item = True
         for chapter_name, page_number in contents.items():
-            link = self.add_link()
-            self.set_link(link, page=page_number)
+            link = None
+            if create_hyperlink:
+                link = self.add_link()
+                self.set_link(link, page=page_number)
             self.set_x(PARAMETERS["TOC x-offset"])
             dots = self._get_toc_dots(chapter_name, first_item)
             if first_item:
                 first_item = False
-            self.cell(0, 9, f'{chapter_name}{dots}{page_number}', link=link)
+            text = f'{chapter_name}{dots}{page_number}'
+            link_loc = [self.x, self.y+.5-.5*self.font_size, self.get_string_width(text), self.font_size]
+            link_loc = [x * self.k for x in link_loc] # Change back to pixels and correct it by some factor
+            self.link_locations.append(link_loc)
+            self.cell(0, 9, text, link=link)
             self.ln(8)
+
+    def get_link_locations(self):
+        return self.link_locations
 
     def header(self):
         """
@@ -126,7 +138,7 @@ class PDF(FPDF):
         self.ln(PARAMETERS["Distance between chapter title and chapter body"])
         self._add_empty_line()
 
-    def chapter_body(self, text_body):
+    def _chapter_body(self, text_body):
         """
         Prints the text to the body of chapter
         :param text_body: Python string what to print to the page
@@ -137,7 +149,7 @@ class PDF(FPDF):
         self.multi_cell(0, PARAMETERS["Distance between lines of chapter body"], text_body)
         self.ln()
 
-    def set_footer_text(self, text):
+    def _set_footer_text(self, text):
         """
         Sets the footer text that footer function prints out
         :param text: Text to print at the footer
@@ -153,11 +165,11 @@ class PDF(FPDF):
         :param footer_text:
         :return:
         """
-        if get_text_body_length(text_body=text_body) > 50:
+        if get_text_body_length(text_body) > 50:
             self.add_page(orientation="P")
         else:
             self.add_page(orientation="L")
-        self.set_footer_text(footer_text)
+        self._set_footer_text(footer_text)
         self.chapter_title(chapter_title)
-        self.chapter_body(text_body)
+        self._chapter_body(text_body)
 
