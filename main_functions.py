@@ -40,7 +40,7 @@ def get_chapter_name(text):
 
 def get_toc(files, toc_orientation):
     """
-    Creates a dictionary that has all the chapter names and page numbers from the list of files
+    Creates a dictionary that has all the chapter names and page numbers from the list of text files
     :param toc_orientation: Parameter that specifies table of contents orientation
     :param files: list of absolute paths of files
     :return: returns library where keys are chapter names and values are page numbers where they start
@@ -115,7 +115,7 @@ def change_coordinates(arr, orientation):
         raise ValueError("Unknown page orientation")
     return new
 
-
+### TODO: ABILITY TO CONVERT MULTIPLE FILES WITHOUT CLOSING WORD IN BETWEEN
 def change_filetype(input_file, output_filetype, backend_converter='word', output_file_name=None):
     """
     Converts the input file to requested filetype and saves it as specified output file. Uses Microsoft Word backend but
@@ -285,7 +285,7 @@ class Converter(QThread):
                 chapter = helper_functions.get_chapter_from_pdf_txt(page_content)
                 chapters.append(chapter)
             except:
-                pass
+                chapters.append("No chapters found")
 
             pages.append(read_pdf.getNumPages())
             merger.append(fileobj=file)
@@ -304,13 +304,11 @@ class Converter(QThread):
             pdf.set_title("")
             pdf.table_of_contents(toc, orientation=self.toc_orientation, create_hyperlink=False)
             pdf.output("toc.pdf", 'F')
-            link_locations = pdf.get_link_locations()
+            link_locations, page_locations = pdf.get_link_locations()
             pdf.close()
             time.sleep(2)
 
             link_locations = [change_coordinates(x, self.toc_orientation) for x in link_locations]  # Change the coordinate
-
-            page_locations = list(toc.values())
 
             merger = PdfFileMerger()
             merger.append("toc.pdf")
