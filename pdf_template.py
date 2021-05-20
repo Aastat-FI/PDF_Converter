@@ -1,16 +1,8 @@
 from fpdf import FPDF
-import os
+import settings
+import textwrap
 
-PARAMETERS = {
-    "Header y-offset": 20,
-    "Distance between header and chapter title": 5,
-    "Chapter body x-offset": 40,
-    "Distance between chapter title and chapter body": 7,
-    "Footer y-offset from bottom": -40,
-    "Distance between lower-dashed line and footer": 4,
-    "TOC x-offset": 30,
-    "Distance between lines of chapter body": 3.3 #Might be 3.35 from lookin at html file
-}
+PARAMETERS = settings.get_parameters()
 
 
 def get_text_body_length(text_body):
@@ -18,16 +10,14 @@ def get_text_body_length(text_body):
 
 
 class PDF(FPDF):
-    """
-    Custom PDF class to replicate the wanted format
-    """
+
     def __init__(self, orientation='P', unit='mm', format='A4'):
         super().__init__(orientation, unit, format)
         self.footer_text = ""
-        path_to_font = os.path.dirname(__file__) + "\\fonts\\CourierNewRegular.ttf"
         path_to_font = "CourierNewRegular.ttf"
         self.add_font('Courier New', '', path_to_font, uni=True)
         self.link_locations = []
+        self.toc_page = []
 
     def table_of_contents(self, contents, orientation, create_hyperlink=True):
         """
@@ -43,9 +33,10 @@ class PDF(FPDF):
         self.set_font('Courier New', '', 16)
         self.set_x(PARAMETERS["TOC x-offset"])
         self.cell(0, 9, 'Table of Contents')
-        self.set_font('Times', '', 12)
+        self.set_font('Times', '', PARAMETERS["Toc font size"])
         self.ln(10)
         first_item = True
+
         for chapter_name, page_number in contents.items():
             link = None
             if create_hyperlink:
@@ -56,14 +47,19 @@ class PDF(FPDF):
             if first_item:
                 first_item = False
             text = f'{chapter_name}{dots}{page_number}'
-            link_loc = [self.x, self.y+.5-.5*self.font_size, self.get_string_width(text), self.font_size]
-            link_loc = [x * self.k for x in link_loc] # Change back to pixels and correct it by some factor
+
+            link_loc = [self.x, self.y + .5 - .5 * self.font_size, self.get_string_width(text), self.font_size]
+            link_loc = [x * self.k for x in link_loc]  # Change back to pixels
+
             self.link_locations.append(link_loc)
             self.cell(0, 9, text, link=link)
             self.ln(8)
 
     def get_link_locations(self):
         return self.link_locations
+
+
+
 
     def header(self):
         """
@@ -172,4 +168,3 @@ class PDF(FPDF):
         self._set_footer_text(footer_text)
         self.chapter_title(chapter_title)
         self._chapter_body(text_body)
-
