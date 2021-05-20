@@ -1,8 +1,11 @@
-from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QWidget, QApplication, QFileDialog, QRadioButton, \
-    QButtonGroup, QTextBrowser, QCheckBox, QStyleFactory
-from main_functions import create_pdf_from_txt_files, create_pdf_from_rtf_files
+from PyQt5.QtCore import QThread
+from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QWidget, QFileDialog, QRadioButton, \
+    QButtonGroup, QTextBrowser, QCheckBox, QProgressBar
+from main_functions import Converter
+from settings import get_parameters
 
-import main_functions
+
+parameters = get_parameters()
 
 
 ### TODO: COMMENT
@@ -10,11 +13,24 @@ import main_functions
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.files = []
-        self.filetype = "rtf"
-        self.engine = "Word"
-        self.toc_orientation = "P"
+        self.filetype_set = False
         self.save_location = ""
+        self.converter = Converter()
+
+        self.create_ui()
+
+    def create_thread(self):
+        self.thread = QThread()
+        self.thread.finished.connect(self._update_finished_text)
+        self.converter.moveToThread(self.thread)
+        self.thread.started.connect(self.converter.convert)
+        self.converter.finished.connect(self.thread.quit)
+        #self.converter.finished.connect(self.converter.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.converter.progress.connect(self._on_progress_update)
+
+
+    def create_ui(self):
         self.setLayout(QVBoxLayout())
         self.setWindowTitle("PDF compiler")
         self.label_above_text_box = QLabel("Selected files:")
@@ -22,6 +38,7 @@ class MainWindow(QWidget):
         self.select_file_label = QLabel("Choose filetype")
         self.rtf_button = QRadioButton(".*rtf files", clicked=lambda: self._set_filetype("rtf"))
         self.rtf_button.setChecked(True)
+        self.converter.set_filetype("rtf")
         self.txt_button = QRadioButton(".*txt files", clicked=lambda: self._set_filetype("txt"))
         self.file_buttons = QButtonGroup()
         self.file_buttons.addButton(self.rtf_button)
@@ -64,37 +81,41 @@ class MainWindow(QWidget):
         self.layout().addWidget(self.compile_button)
         self.layout().addWidget(self.label_above_text_box)
         self.layout().addWidget(self.big_text_box)
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setValue(0)
+        self.layout().addWidget(self.progress_bar)
         self.show()
+
 
     def _select_files(self):
         dialog = QFileDialog()
         self.label_above_text_box.setText("Selected files:")
         file_filter = "All files"
-        if not self.filetype:
-            self.big_text_box.setText("Please select filetype first")
+        if not self.converter.filetype_set():
+            self._update_text_window("Please select filetype first")
             return None
         else:
-            if self.filetype == "txt":
+            if self.converter.get_filetype() == "txt":
                 file_filter = 'Text file (*.txt)'
-            elif self.filetype == "rtf":
+            elif self.converter.get_filetype() == "rtf":
                 file_filter = 'Rich Text Format file (*.rtf)'
 
             filename = dialog.getOpenFileNames(filter=file_filter)
-            self.files = filename[0]
+            self.converter.set_files(filename[0])
         file_string = ""
         for file in filename[0]:
             file_string += file
             file_string += "\n"
-        self.big_text_box.setText(file_string)
+        self._update_text_window(file_string)
 
     def _set_filetype(self, filetype):
-        self.filetype = filetype
+        self.converter.set_filetype(filetype)
 
     def _set_engine(self, engine):
-        self.engine = engine
+        self.converter.set_engine(engine)
 
     def _set_toc_orientation(self, orientation):
-        self.toc_orientation = orientation
+        self.converter.set_toc_orientation(orientation)
 
     def _set_save_location(self):
         dialog = QFileDialog()
@@ -102,41 +123,55 @@ class MainWindow(QWidget):
         dialog.setFileMode(QFileDialog.Directory)
         if dialog.exec_() == QFileDialog.Accepted:
             file = dialog.selectedFiles()[0]
-            self.save_location = file
-            self.save_file_label.setText(f"Save file location \n{file}")
+            self.converter.set_filename(file + "/" + parameters["PDF name"])
+            self.save_file_label.setText(f"Save file location \n{file}/compiled.pdf")
+            self.compile_button.setText("Compile from selected files")
 
     def _set_toc_bool(self):
         if self.toc_button.isChecked():
             self.v_toc_orientation_button.setChecked(True)
-            self.toc_orientation = "P"
+            self.converter.set_toc_orientation("P")
+
+    def _update_progress_bar_length(self):
+        if not self.converter.converter_ready():
+            return None
+        self.progress_bar.setMaximum(self.converter.get_num_files() + 1)
+
+    def _remove_progress_bar(self):
+        self.progress_bar.setValue(0)
+        self.layout().removeWidget(self.progress_bar)
 
     def _compile(self):
-        create_toc = self.toc_button.isChecked()
-        if not self.save_location:
+        if not self.converter.filename_set():
             self.compile_button.setText("Compile from selected files\n Select save location first!")
             return None
-        created_file_name = self.save_location + "\\compiled.pdf"
-        if not self.files:
-            self.big_text_box.setText("Select files first!")
+        if not self.converter.files_set():
+            self._update_text_window("Select files first!")
             return None
-        if self.filetype == "txt":
-            create_pdf_from_txt_files(self.files, created_file_name, create_toc, self.toc_orientation)
-        elif self.filetype == "rtf":
-            self.big_text_box.setText("Compiling PDF from rtf files. \n This may take some time \nDo not open "
-                                      "the selected engine while this program is running")
-            create_pdf_from_rtf_files(self.files, created_file_name, create_toc, self.toc_orientation)
-        else:
-            self.big_text_box.setText("Something went wrong")
-            return None
+        self._update_started_text()
+        self.create_thread()
+        self._update_progress_bar_length()
+        self.thread.start()
 
-        self.label_above_text_box.setText("Compiled successfully")
+        self.progress_bar.setValue(self.converter.get_num_files() + 1)
+
+    def _update_text_window(self, msg):
+        self.big_text_box.setText(msg)
+
+    def _on_progress_update(self, value):
+        self.progress_bar.setValue(value)
+
+    def _update_finished_text(self):
+        if self.toc_button.isChecked():
+            compile_text = f"PDF compiled as {self.converter.filename}"
+        else:
+            compile_text = f"PDF compiled as {self.converter.filename} \nTable of contents page not created"
+        self._update_text_window(compile_text)
         self.compile_button.setText("Compile from selected files")
 
-        page_orientation = "Vertical" if self.toc_orientation == "P" else "Horizontal"
-        if create_toc:
-            compile_text = f"PDF compiled as {created_file_name} \nTable of contents page orientation: \n{page_orientation}"
-        else:
-            compile_text = f"PDF compiled as {created_file_name} \nTable of contents page not created"
-        self.big_text_box.setText(compile_text)
+    def _update_started_text(self):
+        self.label_above_text_box.setText("Compiled successfully")
+        self._update_text_window("Compiling PDF from rtf files. \nThis may take some time \nDo not open "
+                                 "the selected engine while this program is running")
 
 

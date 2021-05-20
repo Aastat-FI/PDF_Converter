@@ -5,6 +5,7 @@ from PyPDF2.pdf import PdfFileReader, PdfFileWriter
 import helper_functions
 from pdf_template import PDF
 from helper_functions import *
+from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, QObject
 
 
 def get_program_info(text):
@@ -40,7 +41,7 @@ def get_chapter_name(text):
 def get_toc(files, toc_orientation):
     """
     Creates a dictionary that has all the chapter names and page numbers from the list of files
-    :param toc_orientation: Paramater that specifies table of contents orientation
+    :param toc_orientation: Parameter that specifies table of contents orientation
     :param files: list of absolute paths of files
     :return: returns library where keys are chapter names and values are page numbers where they start
     """
@@ -88,120 +89,6 @@ def get_text_blocks(text):
             block = remove_empty_lines(block)
             blocks.append(block)
     return blocks
-
-
-def create_pdf_from_txt_files(files, filename, create_toc=True, toc_orientation="P"):
-    """
-    High level function that connects several functions and custom pdf class to output a pdf that connects all the
-    text files.
-    :param filename: Name we want to save the created pdf. If the name does not end in .pdf it is automatically
-        placed
-    :param create_toc: Boolean indicating if we want table of contents
-    :param files: List of absolute paths of text files that we want to parse to a pdf
-    :return:
-    """
-    pdf = PDF()
-    title_set = False
-    pdf.set_title("")
-    if create_toc:
-        toc = get_toc(files, toc_orientation)
-        pdf.table_of_contents(toc, orientation=toc_orientation)
-
-    for file in files:
-        text = get_text_from_file(file)
-        if not title_set:
-            research_name = get_research_name(text)
-            pdf.set_title(research_name)
-            title_set = True
-        program_info = get_program_info(text)
-        chapter_name = get_chapter_name(text)
-        for block in get_text_blocks(text):
-            pdf.print_chapter(chapter_title=chapter_name, text_body=block,
-                              footer_text=program_info)
-    if ".pdf" not in filename:
-        filename = filename + ".pdf"
-    pdf.output(filename, 'F')
-
-
-def create_pdf_from_rtf_files(file_list, master_file_name, create_toc=True, toc_orientation="P"):
-    """
-
-    :param file_list: List of rtf files
-    :param master_file_name: File name to be created
-    :param create_toc: Boolean indicating if the user wants to create toc
-    :param toc_orientation: Orientation of table of contents
-    :return:
-    """
-    tmp_to_delete = []
-    pdfs = []
-    for file in file_list:
-        changed_file = change_filetype(file, "pdf")
-        pdfs.append(changed_file)
-    merger = PdfFileMerger()
-    pages = []
-    chapters = []
-    for file in pdfs:
-        read_pdf = PdfFileReader(file)
-        txt = read_pdf.getPage(0)
-        page_content = txt.extractText()
-        chapter = helper_functions.get_chapter_from_pdf_txt(page_content)
-
-        pages.append(read_pdf.getNumPages())
-        chapters.append(chapter)
-        merger.append(fileobj=file)
-    if not create_toc:
-        merger.write(master_file_name)
-    else:
-        merger.write("tmp.pdf")
-    merger.close()
-    tmp_to_delete += pdfs
-    if create_toc:
-        ### Creates table of contents pdf
-        toc = compile_toc(chapters, pages, orientation=toc_orientation)
-        pdf = PDF()
-        pdf.set_title("")
-        pdf.table_of_contents(toc, orientation=toc_orientation, create_hyperlink=False)
-        pdf.output("toc.pdf", 'F')
-        link_locations = pdf.get_link_locations()
-        pdf.close()
-        time.sleep(2)
-
-        link_locations = [change_coordinates(x, toc_orientation) for x in link_locations]  # Change the coordinate
-
-        page_locations = list(toc.values())
-
-        merger = PdfFileMerger()
-        merger.append("toc.pdf")
-        merger.append("tmp.pdf")
-        merger.write("tmp2.pdf")
-        merger.close()
-
-        ### Create hyperlinks
-        reader = PdfFileReader("tmp2.pdf")
-        writer = PdfFileWriter()
-        for i in range(reader.getNumPages()):
-            page = reader.getPage(i)
-            writer.addPage(page)
-        for i in range(len(link_locations)):
-            toc_page = 1
-            if toc_orientation == "P":
-                toc_page = math.floor(i / 27)
-            if toc_orientation == "L":
-                toc_page = math.floor(i / 17)
-            writer.addLink(pagenum=toc_page, pagedest=page_locations[i] - 1, rect=link_locations[i], fit="/Fit",
-                           border=[0, 0, 0])
-        with open(master_file_name, 'wb') as out:
-            writer.write(out)
-
-        tmp_to_delete += ["tmp.pdf"] + ["tmp2.pdf"] + ["toc.pdf"]
-
-    for file in tmp_to_delete:
-        try:
-            os.remove(file)
-        except:
-            path = os.path.abspath(".")
-            file = path + "/" + file
-            os.remove(file)
 
 
 def change_coordinates(arr, orientation):
@@ -252,7 +139,6 @@ def change_filetype(input_file, output_filetype, backend_converter='word', outpu
         "txt": 7,
         "windows_txt": 3
     }
-
     if output_file_name is None:
         filename = input_file.split(".")[0]
         output_file_name = filename + "." + output_filetype
@@ -263,17 +149,16 @@ def change_filetype(input_file, output_filetype, backend_converter='word', outpu
             word_backend = comtypes.client.CreateObject("Word.Application")
             word_backend.Visible = False
         except:
-            print("Error setting up Word application")
-            return None
+            raise RuntimeError("Error setting up Word application")
         try:
             document = word_backend.Documents.Open(input_file)
         except:
-            print("Error opening file: format not supported or file not found")
             word_backend.Quit()
-            return None
+            raise FileNotFoundError("Error opening file: format not supported or file not found")
+        format_number = filetypes[output_filetype]
+        print(output_file_name, format_number)
 
         time.sleep(2)
-        format_number = filetypes[output_filetype]
         document.SaveAs(output_file_name, FileFormat=format_number)
         document.Close()
         word_backend.Quit()
@@ -287,3 +172,191 @@ def change_filetype(input_file, output_filetype, backend_converter='word', outpu
         raise ValueError("Not valid backend converter")
 
     return output_file_name
+
+
+class Converter(QThread):
+    finished = pyqtSignal()
+    started = pyqtSignal()
+    progress = pyqtSignal(int)
+
+    def __init__(self):
+        super().__init__()
+        #if files is None:
+        #    files = []
+        #self.files = files
+        #self.filename = filename
+        #self.create_toc = create_toc
+        #self.toc_orientation = toc_orientation
+        #self.filetype = filetype
+        #self.trash = []
+        #self.engine = "word"
+        self.create_toc = True
+        self.files = None
+        self.filename = None
+        self.toc_orientation = "P"
+        self.progress.connect(self.handle_event)
+        self.engine = "word"
+        self.trash = []
+
+    def handle_event(self):
+        pass
+
+    def set_files(self, files):
+        self.files = files
+
+    def set_filename(self, filename):
+        self.filename = filename
+        self._fix_filename()
+
+    def set_create_toc(self, create_toc):
+        self.create_toc = create_toc
+
+    def set_toc_orientation(self, toc_orientation):
+        self.toc_orientation = toc_orientation
+
+    def set_filetype(self, filetype):
+        self.filetype = filetype
+
+    def get_num_files(self):
+        if self.files is None:
+            return 0
+        else:
+            return len(self.files)
+
+    def _fix_filename(self):
+        if ".pdf" not in self.filename:
+            self.filename = self.filename + ".pdf"
+
+    def _set_engine(self, engine):
+        self.engine = engine
+
+    def filetype_set(self):
+        return not (self.filetype is None)
+
+    def get_filetype(self):
+        return self.filetype
+
+    def files_set(self):
+        return not (self.files is None)
+
+    def filename_set(self):
+        return not (self.filename is None)
+
+    def convert(self):
+        if not self.filetype or not self.files:
+            raise ValueError("Filetype, filename or files has not been set")
+        if self.filetype == "rtf":
+            self._create_pdf_from_rtf_files()
+        elif self.filetype == "txt":
+            self._create_pdf_from_txt_files()
+        else:
+            raise ValueError("Filetype not set")
+        self._delete_trash()
+        self.progress.emit(self.get_num_files() + 1)
+        self.finished.emit()
+
+    def _delete_trash(self):
+        for file in self.trash:
+            try:
+                os.remove(file)
+            except FileNotFoundError:
+                path = os.path.abspath(".")
+                file = path + "/" + file
+                os.remove(file)
+
+    def converter_ready(self):
+        return self.files_set() and self.filename_set() and self.filetype_set()
+
+    def _create_pdf_from_rtf_files(self):
+        pdfs = []
+        self.progress.emit(0)
+        for count, file in enumerate(self.files):
+            changed_file = change_filetype(file, "pdf", self.engine)
+            pdfs.append(changed_file)
+            self.progress.emit(count + 1)
+        merger = PdfFileMerger()
+        pages = []
+        chapters = []
+        for file in pdfs:
+            read_pdf = PdfFileReader(file)
+            txt = read_pdf.getPage(0)
+            page_content = txt.extractText()
+            try:
+                chapter = helper_functions.get_chapter_from_pdf_txt(page_content)
+                chapters.append(chapter)
+            except:
+                pass
+
+            pages.append(read_pdf.getNumPages())
+            merger.append(fileobj=file)
+        if not self.create_toc:
+            merger.write(self.master_file_name)
+        else:
+            merger.write("tmp.pdf")
+        merger.close()
+        self.trash += pdfs
+        if self.create_toc:
+            ### Creates table of contents pdf
+            if not chapters:
+                raise ValueError("Chapters not found")
+            toc = compile_toc(chapters, pages, orientation=self.toc_orientation)
+            pdf = PDF()
+            pdf.set_title("")
+            pdf.table_of_contents(toc, orientation=self.toc_orientation, create_hyperlink=False)
+            pdf.output("toc.pdf", 'F')
+            link_locations = pdf.get_link_locations()
+            pdf.close()
+            time.sleep(2)
+
+            link_locations = [change_coordinates(x, self.toc_orientation) for x in link_locations]  # Change the coordinate
+
+            page_locations = list(toc.values())
+
+            merger = PdfFileMerger()
+            merger.append("toc.pdf")
+            merger.append("tmp.pdf")
+            merger.write("tmp2.pdf")
+            merger.close()
+
+            ### Create hyperlinks
+            reader = PdfFileReader("tmp2.pdf")
+            writer = PdfFileWriter()
+            for i in range(reader.getNumPages()):
+                page = reader.getPage(i)
+                writer.addPage(page)
+            for i in range(len(link_locations)):
+                toc_page = 1
+                if self.toc_orientation == "P":
+                    toc_page = math.floor(i / settings["Items on vertical toc"])
+                if self.toc_orientation == "L":
+                    toc_page = math.floor(i / settings["Items on horizontal toc"])
+                writer.addLink(pagenum=toc_page, pagedest=page_locations[i] - 1, rect=link_locations[i], fit="/Fit",
+                               border=[0, 0, 0])
+            with open(self.filename, 'wb') as out:
+                writer.write(out)
+
+            self.trash += ["tmp.pdf", "tmp2.pdf", "toc.pdf"]
+
+    def _create_pdf_from_txt_files(self):
+        pdf = PDF()
+        title_set = False
+        pdf.set_title("")
+
+        if self.create_toc:
+            toc = get_toc(self.files, self.toc_orientation)
+            pdf.table_of_contents(toc, orientation=self.toc_orientation)
+
+        for count, file in enumerate(self.files):
+            text = get_text_from_file(file)
+            self.progress.emit(count + 1)
+            if not title_set:
+                research_name = get_research_name(text)
+                pdf.set_title(research_name)
+                title_set = True
+            program_info = get_program_info(text)
+            chapter_name = get_chapter_name(text)
+            for block in get_text_blocks(text):
+                pdf.print_chapter(chapter_title=chapter_name, text_body=block,
+                                  footer_text=program_info)
+        pdf.output(self.filename, 'F')
+
