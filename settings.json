@@ -1,0 +1,15 @@
+{
+    "Header y-offset": 20,
+    "Distance between header and chapter title": 5,
+    "Chapter body x-offset": 40,
+    "Distance between chapter title and chapter body": 7,
+    "Footer y-offset from bottom": -40,
+    "Distance between lower-dashed line and footer": 4,
+    "TOC x-offset": 30,
+    "Distance between lines of chapter body": 3.3,
+    "Toc font size": 12,
+    "RTF_conversion_first_word_in_footer": "Program",
+    "PDF name": "compiled.pdf",
+    "Items on horizontal toc": 17,
+    "Items on vertical toc": 27
+}
