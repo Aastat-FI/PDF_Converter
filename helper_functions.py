@@ -1,12 +1,11 @@
 import os
 import re
 import math
+import textwrap
 from itertools import accumulate
 import settings
 
 settings = settings.get_parameters()
-
-chapter_from_pdf_re = f"[\d]{4}[A-z0-9\\ /-:-().]*{settings['RTF_conversion_first_word_in_footer']}"
 
 
 def get_text_from_file(file_path):
@@ -51,12 +50,20 @@ def remove_empty_lines(block_of_text):
 
 def get_chapter_from_pdf_txt(pdf_text):
     txt = repr(pdf_text)
-    found = re.findall(pattern=chapter_from_pdf_re, string=txt)[0]
+    found = re.findall(pattern="[\d]{4}[A-z0-9\\ \n-:()]*Program", string=txt)[0]
     found = found.replace("\\n", "")
-    found = found.replace(settings['RTF_conversion_first_word_in_footer'], "")
-    found = re.sub("[\\d]{4}", "", found)
+    found = found.replace("Program", "")
+    found = re.sub("^[\\d]{4}", "", found)
     found = found.strip()
     return found
+
+
+def break_chapter_to_lines(chapter, orientation="P"):
+    if orientation == "P":
+        lines = textwrap.wrap(chapter, settings["Vertical Toc characters per line"], break_long_words=False)
+    else:
+        lines = textwrap.wrap(chapter, settings["Horizontal Toc characters per line"], break_long_words=False)
+    return lines
 
 
 def compile_toc(chapters, pages, orientation):
@@ -67,12 +74,13 @@ def compile_toc(chapters, pages, orientation):
     :param pages: List of how many chapters each page takes
     :return: Table of contents dictionary
     """
-    if orientation == "L":
-        toc_pages = math.ceil(len(chapters) / settings["Items on horizontal toc"])
-    elif orientation == "P":
-        toc_pages = math.ceil(len(chapters) / settings["Items on vertical toc"])
-    else:
-        raise ValueError("Orientation not supported")
+
+    max_items = settings["Items on horizontal toc"] if orientation == "L" else settings["Items on vertical toc"]
+
+    broken = [break_chapter_to_lines(chapter) for chapter in chapters]
+    lines = sum([len(x) for x in broken])
+    toc_pages = math.ceil(lines / max_items)
+    print(f'toc pages: {toc_pages}')
 
     pages.insert(0, toc_pages)
     pages = list(accumulate(pages))
