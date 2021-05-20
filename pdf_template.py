@@ -9,6 +9,11 @@ def get_text_body_length(text_body):
     return len(text_body.splitlines())
 
 
+def break_text(text):
+    lines = textwrap.wrap(text, PARAMETERS["Toc characters per line"], break_long_words=False)
+    return lines
+
+
 class PDF(FPDF):
 
     def __init__(self, orientation='P', unit='mm', format='A4'):
@@ -42,24 +47,34 @@ class PDF(FPDF):
             if create_hyperlink:
                 link = self.add_link()
                 self.set_link(link, page=page_number)
-            self.set_x(PARAMETERS["TOC x-offset"])
-            dots = self._get_toc_dots(chapter_name, first_item)
-            if first_item:
-                first_item = False
-            text = f'{chapter_name}{dots}{page_number}'
+            broken_text = self.break_text(chapter_name)
+            for line in broken_text:
+                self.set_x(PARAMETERS["TOC x-offset"])
+                if len(broken_text) == 1:
+                    dots = self._get_toc_dots(line, first_item, first_line=True)
+                    if first_item:
+                        first_item = False
+                    text = f'{line}{dots}{page_number}'
+                else:
+                    if line == broken_text[0]:
+                        text = line
+                    elif line == broken_text[-1]:
+                        if first_item:
+                            first_item = False
+                        dots = self._get_toc_dots(line, first_item, first_line=False)
+                        text = f'{" " * 5}{line}{dots}{page_number}'
+                    else:
+                        text = f'{" " * 5}{line}'
 
-            link_loc = [self.x, self.y + .5 - .5 * self.font_size, self.get_string_width(text), self.font_size]
-            link_loc = [x * self.k for x in link_loc]  # Change back to pixels
+                link_loc = [self.x, self.y + .5 - .5 * self.font_size, self.get_string_width(text), self.font_size]
+                link_loc = [x * self.k for x in link_loc]  # Change back to pixels
 
-            self.link_locations.append(link_loc)
-            self.cell(0, 9, text, link=link)
-            self.ln(8)
+                self.link_locations.append(link_loc)
+                self.cell(0, 9, text, link=link)
+                self.ln(8)
 
     def get_link_locations(self):
         return self.link_locations
-
-
-
 
     def header(self):
         """
@@ -73,24 +88,19 @@ class PDF(FPDF):
         self.cell(w, 9, self.title)
         self.ln(PARAMETERS["Distance between header and chapter title"])
 
-    def _get_toc_dots(self, chapter_name, first_item=True):
+    def _get_toc_dots(self, chapter_name, first_item=True, first_line=True):
         w = self.get_string_width(chapter_name)
         if self.cur_orientation == "P":
-            if first_item:
-                dots = "." * (200 - 2 * PARAMETERS["TOC x-offset"] - int(w) - 3)
-                return dots
-            else:
-                dots = "." * (200 - 2 * PARAMETERS["TOC x-offset"] - int(w))
-                return dots
+            dots = "." * (200 - 2 * PARAMETERS["TOC x-offset"] - int(w))
         elif self.cur_orientation == "L":
-            if first_item:
-                dots = "." * (270 - 2 * PARAMETERS["TOC x-offset"] - int(w) - 3)
-                return dots
-            else:
-                dots = "." * (270 - 2 * PARAMETERS["TOC x-offset"] - int(w))
-                return dots
+            dots = "." * (270 - 2 * PARAMETERS["TOC x-offset"] - int(w))
         else:
             raise ValueError("Orientation not supported for toc-creation")
+        if first_item:
+            dots = dots[:-3]
+        if not first_line:
+            dots = dots[:-8]
+        return dots
 
     def _add_empty_line(self, length=123):
         """
