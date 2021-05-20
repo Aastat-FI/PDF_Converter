@@ -1,17 +1,14 @@
+from builtins import filter
+
 from fpdf import FPDF
 import settings
-import textwrap
+from helper_functions import break_chapter_to_lines
 
 PARAMETERS = settings.get_parameters()
 
 
 def get_text_body_length(text_body):
     return len(text_body.splitlines())
-
-
-def break_text(text):
-    lines = textwrap.wrap(text, PARAMETERS["Toc characters per line"], break_long_words=False)
-    return lines
 
 
 class PDF(FPDF):
@@ -21,8 +18,11 @@ class PDF(FPDF):
         self.footer_text = ""
         path_to_font = "CourierNewRegular.ttf"
         self.add_font('Courier New', '', path_to_font, uni=True)
+        # Containing coordinates for link
         self.link_locations = []
-        self.toc_page = []
+        # Page numbers where links lead. Used for rtf conversion
+        self.link_page = []
+        self.writing_toc = False
 
     def table_of_contents(self, contents, orientation, create_hyperlink=True):
         """
@@ -33,13 +33,11 @@ class PDF(FPDF):
         :return:
         """
         #  TODO: figure out why there is a need to use "Hack" to get toc items working
+        self.writing_toc = True
         self.set_auto_page_break(True, margin=40)
         self.add_page(orientation=orientation)
-        self.set_font('Courier New', '', 16)
-        self.set_x(PARAMETERS["TOC x-offset"])
-        self.cell(0, 9, 'Table of Contents')
-        self.set_font('Times', '', PARAMETERS["Toc font size"])
-        self.ln(10)
+        self.toc_header()
+        self.set_font('Courier New', '', PARAMETERS["Toc font size"])
         first_item = True
 
         for chapter_name, page_number in contents.items():
@@ -47,11 +45,12 @@ class PDF(FPDF):
             if create_hyperlink:
                 link = self.add_link()
                 self.set_link(link, page=page_number)
-            broken_text = self.break_text(chapter_name)
+            broken_text = break_chapter_to_lines(chapter_name)
             for line in broken_text:
+                self.link_page.append(page_number)
                 self.set_x(PARAMETERS["TOC x-offset"])
                 if len(broken_text) == 1:
-                    dots = self._get_toc_dots(line, first_item, first_line=True)
+                    dots = self._get_toc_dots(line, first_line=True)
                     if first_item:
                         first_item = False
                     text = f'{line}{dots}{page_number}'
@@ -61,7 +60,7 @@ class PDF(FPDF):
                     elif line == broken_text[-1]:
                         if first_item:
                             first_item = False
-                        dots = self._get_toc_dots(line, first_item, first_line=False)
+                        dots = self._get_toc_dots(line, first_line=False)
                         text = f'{" " * 5}{line}{dots}{page_number}'
                     else:
                         text = f'{" " * 5}{line}'
@@ -74,13 +73,9 @@ class PDF(FPDF):
                 self.ln(8)
 
     def get_link_locations(self):
-        return self.link_locations
+        return self.link_locations, self.link_page
 
-    def header(self):
-        """
-        Creates header to page. Header text is the study name and is set by set_title method
-        :return:
-        """
+    def text_header(self):
         self.set_font('Courier New', '', 8)
         self.set_y(PARAMETERS["Header y-offset"])
         w = self.get_string_width(self.title) + 6
@@ -88,24 +83,43 @@ class PDF(FPDF):
         self.cell(w, 9, self.title)
         self.ln(PARAMETERS["Distance between header and chapter title"])
 
-    def _get_toc_dots(self, chapter_name, first_item=True, first_line=True):
-        w = self.get_string_width(chapter_name)
+    def toc_header(self):
+        self.set_font('Courier New', '', 16)
+        self.set_y(PARAMETERS["Header y-offset"])
+        self.set_x(PARAMETERS["TOC x-offset"])
+        self.cell(0, 9, 'Table of Contents')
+        self.ln(2)
+        self.set_x(PARAMETERS["TOC x-offset"])
+        self.cell(0, 9, "_" * 17)
+        self.ln(14)
+
+    def header(self):
+        """
+        Creates header to page. Header text is the study name and is set by set_title method
+        :return:
+        """
+        if self.writing_toc:
+            self.toc_header()
+        else:
+            self.text_header()
+
+    def _get_toc_dots(self, chapter_name, first_line=True):
+        characters = len(chapter_name)
+
         if self.cur_orientation == "P":
-            dots = "." * (200 - 2 * PARAMETERS["TOC x-offset"] - int(w))
+            num_dots = PARAMETERS["Vertical Toc characters per line"] - characters
         elif self.cur_orientation == "L":
-            dots = "." * (270 - 2 * PARAMETERS["TOC x-offset"] - int(w))
+            num_dots = PARAMETERS["Horizontal Toc characters per line"] - characters
         else:
             raise ValueError("Orientation not supported for toc-creation")
-        if first_item:
-            dots = dots[:-3]
-        if not first_line:
-            dots = dots[:-8]
+        if first_line:
+            num_dots += 5
+        dots = "." * (num_dots + 5)
         return dots
 
-    def _add_empty_line(self, length=123):
+    def _add_empty_line(self):
         """
         Creates dashed line to indicate where page ends
-        :param length: Length of the line.
         :return:
         """
         empty_line = "_"
@@ -171,6 +185,7 @@ class PDF(FPDF):
         :param footer_text:
         :return:
         """
+        self.writing_toc = False
         if get_text_body_length(text_body) > 50:
             self.add_page(orientation="P")
         else:
