@@ -2,11 +2,11 @@ import os
 import re
 import math
 from itertools import accumulate
+import settings
 
-import PyPDF2
+settings = settings.get_parameters()
 
-
-chapter_from_pdf_re = "[\d]{4}[A-z0-9\\ /-:-().]*Program"
+chapter_from_pdf_re = f"[\d]{4}[A-z0-9\\ /-:-().]*{settings['RTF_conversion_first_word_in_footer']}"
 
 
 def get_text_from_file(file_path):
@@ -53,25 +53,30 @@ def get_chapter_from_pdf_txt(pdf_text):
     txt = repr(pdf_text)
     found = re.findall(pattern=chapter_from_pdf_re, string=txt)[0]
     found = found.replace("\\n", "")
-    found = found.replace("Program", "")
+    found = found.replace(settings['RTF_conversion_first_word_in_footer'], "")
     found = re.sub("[\\d]{4}", "", found)
     found = found.strip()
     return found
 
-def compile_toc(chapters, pages):
+
+def compile_toc(chapters, pages, orientation):
     """
     Creates table of contents library from chapters and lengths of chapters
+    :param orientation: Page orientation: either P for portrait or L for landscape
     :param chapters: List of chapter names
     :param pages: List of how many chapters each page takes
     :return: Table of contents dictionary
     """
-    toc_pages = math.ceil(len(chapters) / 20)
+    if orientation == "L":
+        toc_pages = math.ceil(len(chapters) / settings["Items on horizontal toc"])
+    elif orientation == "P":
+        toc_pages = math.ceil(len(chapters) / settings["Items on vertical toc"])
+    else:
+        raise ValueError("Orientation not supported")
+
     pages.insert(0, toc_pages)
     pages = list(accumulate(pages))
     pages = [x + 1 for x in pages]
     chapter_starts = pages[0:-1]
     toc = dict(zip(chapters, chapter_starts))
     return toc
-
-
-
