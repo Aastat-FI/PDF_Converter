@@ -38,5 +38,6 @@ If there is an error extracting "Chapter" name we set it to name of the file.
 After this we can join the converted PDF files and table of content file together, append the hyperlinks to new PDF and finally save the generated PDF.
 
 ## TODO:
- - Move PDF file settings to own file. 
- - Create status bar indicating how long it takes to assemble PDF from RTF files
+ - Open issue or contact aforementioned maintainers if you encounter any trouble
+ - Fix issue needing to restart program
+ - Load settings either from .csv or from .json
