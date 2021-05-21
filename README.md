@@ -28,7 +28,9 @@ From the converted PDF only metadata we need is the chapter name for the table o
 
     "[\d]{4}[A-z0-9\\ /-:-().]*Program"
 
-Meaning that the "Chapter" name is somewhere between 4 numbers and *"Program"*.  With this and information how long each generated PDF is we can compile table of contents with the pdf_template function which was used when making *.txt file conversion. 
+Meaning that the "Chapter" name is somewhere between 4 numbers and *"Program"*. Word "Program" can be changed from settings.  With this and information how long each generated PDF is we can compile table of contents with the pdf_template function which was used when making *.txt file conversion. 
+
+If there is an error extracting "Chapter" name we set it to name of the file.
 
 After this we can join the converted PDF files and table of content file together, append the hyperlinks to new PDF and finally save the generated PDF.
 
