@@ -11,5 +11,7 @@
     "RTF_conversion_first_word_in_footer": "Program",
     "PDF name": "compiled.pdf",
     "Items on horizontal toc": 17,
-    "Items on vertical toc": 27
+    "Items on vertical toc": 27,
+    "Vertical Toc characters per line": 45,
+    "Horizontal Toc characters per line": 70
 }
