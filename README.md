@@ -9,6 +9,9 @@ The program has been packaged into Creator.exe that contains all the relevant pa
 
 When assembling PDF from the RTF files it is very important not to open backend converted (Microsoft Word or Libreoffice)
 
+![Example picture 1](https://github.com/Aastat-FI/PDF_Converter/blob/master/ExamplePictures/example1.png?raw=true)
+![Example picture 2](https://github.com/Aastat-FI/PDF_Converter/blob/master/ExamplePictures/example1.png?raw=true)
+
 ## How Does It Work?
 ### *txt files:
 Text files are broken into blocks separated by long dashed lines. There are two kinds of text blocks: blocks that contain statistics from study and blocks that contain metadata such as name of the research or program info.
