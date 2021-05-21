@@ -1,9 +1,8 @@
 from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QWidget, QFileDialog, QRadioButton, \
-    QButtonGroup, QTextBrowser, QCheckBox, QProgressBar
+    QButtonGroup, QTextBrowser, QCheckBox, QProgressBar, QTextEdit, QHBoxLayout
 from main_functions import Converter
 from settings import get_parameters
-
 
 parameters = get_parameters()
 
@@ -15,24 +14,61 @@ class MainWindow(QWidget):
         super().__init__()
         self.filetype_set = False
         self.save_location = ""
+        self.main_layout = QHBoxLayout(self)
         self.converter = Converter()
+        self.setWindowTitle("PDF compiler")
 
-        self.create_ui()
+        self.create_base_ui()
 
     def create_thread(self):
-        self.thread = QThread()
-        self.thread.finished.connect(self._update_finished_text)
-        self.converter.moveToThread(self.thread)
-        self.thread.started.connect(self.converter.convert)
-        self.converter.finished.connect(self.thread.quit)
-        #self.converter.finished.connect(self.converter.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.converter.progress.connect(self._on_progress_update)
+        try:
+            self.thread.isFinished()
+        except:
+            self.thread = QThread()
+            self.thread.finished.connect(self._update_finished_text)
+            self.converter.moveToThread(self.thread)
+            self.thread.started.connect(self.converter.convert)
+            self.converter.finished.connect(self.thread.quit)
+            # self.converter.finished.connect(self.converter.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.converter.progress.connect(self._on_progress_update)
+            self.converter.send_toc.connect(self.create_toc_show_window)
 
+    def create_toc_show_window(self, toc_dict):
+        self._update_text_window("Please accept the proposed table of contents")
+        self.toc_text_window = QTextEdit()
+        self.toc_text_window.resize(400, 200)
+        self.accept_toc_button = QPushButton("Accept Table of Contents")
+        self.accept_toc_button.clicked.connect(self.accept_toc)
+        self.tmp_layout = QVBoxLayout()
+        self.tmp_layout.addWidget(self.toc_text_window)
+        self.tmp_layout.addWidget(self.accept_toc_button)
+        self.main_layout.addLayout(self.tmp_layout)
+        text = ""
+        for key, value in toc_dict.items():
+            text += f'{key}: {value}\n'
+        self.toc_text_window.setText(text)
 
-    def create_ui(self):
-        self.setLayout(QVBoxLayout())
-        self.setWindowTitle("PDF compiler")
+    def accept_toc(self):
+        text = self.toc_text_window.toPlainText()
+        df = {}
+        for line in text.splitlines():
+            line = line.split(":")
+            value, data = line[0], line[1]
+            value, data = value.strip(), int(data)
+            df[value] = data
+        self.converter.set_toc_dict(df)
+        self.converter.accept_toc()
+        self.layout().removeWidget(self.toc_text_window)
+        self.toc_text_window.deleteLater()
+        self.toc_text_window = None
+        self.layout().removeWidget(self.accept_toc_button)
+        self.accept_toc_button.deleteLater()
+        self.accept_toc_button = None
+        self._update_text_window("Creating the PDF. Just a second")
+
+    def create_base_ui(self):
+        self.base_layout = QVBoxLayout(self)
         self.label_above_text_box = QLabel("Selected files:")
         self.big_text_box = QTextBrowser()
         self.select_file_label = QLabel("Choose filetype")
@@ -59,33 +95,34 @@ class MainWindow(QWidget):
         self.v_toc_orientation_button = QRadioButton("Vertical table of contents",
                                                      clicked=lambda: self._set_toc_orientation("P"))
 
-        self.toc_button = QCheckBox("Generate table of contents", clicked=lambda: self._set_toc_bool())
+        self.toc_button = QCheckBox("Generate table of contents")
+        self.toc_button.clicked.connect(self.v_toc_orientation_button.setChecked)
         self.compile_button = QPushButton("Compile from selected files", clicked=lambda: self._compile())
 
         self.save_location_button = QPushButton("Select file save location", clicked=lambda: self._set_save_location())
         self.save_file_label = QLabel("Save location not yet selected")
 
-        self.layout().addWidget(self.select_file_label)
-        self.layout().addWidget(self.rtf_button)
-        self.layout().addWidget(self.txt_button)
-        self.layout().addWidget(self.my_button)
-        self.layout().addWidget(self.engine_label)
-        self.layout().addWidget(self.word_button)
-        self.layout().addWidget(self.open_office_button)
-        self.layout().addWidget(self.toc_button)
-        self.layout().addWidget(self.toc_button)
-        self.layout().addWidget(self.v_toc_orientation_button)
-        self.layout().addWidget(self.h_toc_orientation_button)
-        self.layout().addWidget(self.save_location_button)
-        self.layout().addWidget(self.save_file_label)
-        self.layout().addWidget(self.compile_button)
-        self.layout().addWidget(self.label_above_text_box)
-        self.layout().addWidget(self.big_text_box)
+        self.base_layout.addWidget(self.select_file_label)
+        self.base_layout.addWidget(self.rtf_button)
+        self.base_layout.addWidget(self.txt_button)
+        self.base_layout.addWidget(self.my_button)
+        self.base_layout.addWidget(self.engine_label)
+        self.base_layout.addWidget(self.word_button)
+        self.base_layout.addWidget(self.open_office_button)
+        self.base_layout.addWidget(self.toc_button)
+        self.base_layout.addWidget(self.toc_button)
+        self.base_layout.addWidget(self.v_toc_orientation_button)
+        self.base_layout.addWidget(self.h_toc_orientation_button)
+        self.base_layout.addWidget(self.save_location_button)
+        self.base_layout.addWidget(self.save_file_label)
+        self.base_layout.addWidget(self.compile_button)
+        self.base_layout.addWidget(self.label_above_text_box)
+        self.base_layout.addWidget(self.big_text_box)
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setValue(0)
-        self.layout().addWidget(self.progress_bar)
+        self.base_layout.addWidget(self.progress_bar)
+        self.main_layout.addLayout(self.base_layout)
         self.show()
-
 
     def _select_files(self):
         dialog = QFileDialog()
@@ -127,11 +164,6 @@ class MainWindow(QWidget):
             self.save_file_label.setText(f"Save file location \n{file}/compiled.pdf")
             self.compile_button.setText("Compile from selected files")
 
-    def _set_toc_bool(self):
-        if self.toc_button.isChecked():
-            self.v_toc_orientation_button.setChecked(True)
-            self.converter.set_toc_orientation("P")
-
     def _update_progress_bar_length(self):
         if not self.converter.converter_ready():
             return None
@@ -142,6 +174,7 @@ class MainWindow(QWidget):
         self.layout().removeWidget(self.progress_bar)
 
     def _compile(self):
+        self.converter.set_create_toc(self.toc_button.isChecked())
         if not self.converter.filename_set():
             self.compile_button.setText("Compile from selected files\n Select save location first!")
             return None
@@ -152,8 +185,6 @@ class MainWindow(QWidget):
         self.create_thread()
         self._update_progress_bar_length()
         self.thread.start()
-
-        self.progress_bar.setValue(self.converter.get_num_files() + 1)
 
     def _update_text_window(self, msg):
         self.big_text_box.setText(msg)
@@ -167,11 +198,10 @@ class MainWindow(QWidget):
         else:
             compile_text = f"PDF compiled as {self.converter.filename} \nTable of contents page not created"
         self._update_text_window(compile_text)
-        self.compile_button.setText("Compile from selected files")
+        self.compile_button.setText("RESTART PROGRAM BEFORE COMPILING OTHER DOCUMENTS")
 
     def _update_started_text(self):
-        self.label_above_text_box.setText("Compiled successfully")
+        self.label_above_text_box.setText("Compiling..."
+                                          "")
         self._update_text_window("Compiling PDF from rtf files. \nThis may take some time \nDo not open "
                                  "the selected engine while this program is running")
-
-
