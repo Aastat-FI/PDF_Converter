@@ -178,28 +178,19 @@ class Converter(QThread):
     finished = pyqtSignal()
     started = pyqtSignal()
     progress = pyqtSignal(int)
+    send_toc = pyqtSignal(object)
 
     def __init__(self):
         super().__init__()
-        #if files is None:
-        #    files = []
-        #self.files = files
-        #self.filename = filename
-        #self.create_toc = create_toc
-        #self.toc_orientation = toc_orientation
-        #self.filetype = filetype
-        #self.trash = []
-        #self.engine = "word"
         self.create_toc = True
         self.files = None
         self.filename = None
         self.toc_orientation = "P"
-        self.progress.connect(self.handle_event)
         self.engine = "word"
         self.trash = []
-
-    def handle_event(self):
-        pass
+        self.chapters = []
+        self.pages = []
+        self.toc_accepted = False
 
     def set_files(self, files):
         self.files = files
@@ -227,7 +218,7 @@ class Converter(QThread):
         if ".pdf" not in self.filename:
             self.filename = self.filename + ".pdf"
 
-    def _set_engine(self, engine):
+    def set_engine(self, engine):
         self.engine = engine
 
     def filetype_set(self):
@@ -247,6 +238,9 @@ class Converter(QThread):
             raise ValueError("Filetype, filename or files has not been set")
         if self.filetype == "rtf":
             self._create_pdf_from_rtf_files()
+            if self.create_toc:
+                self.create_toc_pdf_and_append_it()
+
         elif self.filetype == "txt":
             self._create_pdf_from_txt_files()
         else:
@@ -285,63 +279,37 @@ class Converter(QThread):
                 chapter = helper_functions.get_chapter_from_pdf_txt(page_content)
                 chapters.append(chapter)
             except:
-                chapters.append("No chapters found")
+                chapter = os.path.basename(file)
+                chapter = chapter.split(".")[0]
+                chapter = chapter.replace("_", " ")
+                chapters.append(chapter)
 
             pages.append(read_pdf.getNumPages())
             merger.append(fileobj=file)
+        self.pages = pages
+        self.chapters = chapters
         if not self.create_toc:
             merger.write(self.master_file_name)
         else:
             merger.write("tmp.pdf")
         merger.close()
         self.trash += pdfs
-        if self.create_toc:
-            ### Creates table of contents pdf
-            if not chapters:
-                raise ValueError("Chapters not found")
-            toc = compile_toc(chapters, pages, orientation=self.toc_orientation)
-            pdf = PDF()
-            pdf.set_title("")
-            pdf.table_of_contents(toc, orientation=self.toc_orientation, create_hyperlink=False)
-            pdf.output("toc.pdf", 'F')
-            link_locations, page_locations = pdf.get_link_locations()
-            pdf.close()
-            time.sleep(2)
-
-            link_locations = [change_coordinates(x, self.toc_orientation) for x in link_locations]  # Change the coordinate
-
-            merger = PdfFileMerger()
-            merger.append("toc.pdf")
-            merger.append("tmp.pdf")
-            merger.write("tmp2.pdf")
-            merger.close()
-
-            ### Create hyperlinks
-            reader = PdfFileReader("tmp2.pdf")
-            writer = PdfFileWriter()
-            for i in range(reader.getNumPages()):
-                page = reader.getPage(i)
-                writer.addPage(page)
-            for i in range(len(link_locations)):
-                toc_page = 1
-                if self.toc_orientation == "P":
-                    toc_page = math.floor(i / settings["Items on vertical toc"])
-                if self.toc_orientation == "L":
-                    toc_page = math.floor(i / settings["Items on horizontal toc"])
-                writer.addLink(pagenum=toc_page, pagedest=page_locations[i] - 1, rect=link_locations[i], fit="/Fit",
-                               border=[0, 0, 0])
-            with open(self.filename, 'wb') as out:
-                writer.write(out)
-
-            self.trash += ["tmp.pdf", "tmp2.pdf", "toc.pdf"]
 
     def _create_pdf_from_txt_files(self):
         pdf = PDF()
         title_set = False
         pdf.set_title("")
+        print(f'Create toc: {self.create_toc}')
 
         if self.create_toc:
             toc = get_toc(self.files, self.toc_orientation)
+            self.toc_dict = toc
+            self.send_toc.emit(toc)
+
+            while not self.toc_accepted:
+                time.sleep(1)
+                pass
+            toc = self.toc_dict
             pdf.table_of_contents(toc, orientation=self.toc_orientation)
 
         for count, file in enumerate(self.files):
@@ -357,4 +325,58 @@ class Converter(QThread):
                 pdf.print_chapter(chapter_title=chapter_name, text_body=block,
                                   footer_text=program_info)
         pdf.output(self.filename, 'F')
+
+    def create_toc_pdf_and_append_it(self):
+        link_locations, page_locations = self._create_toc_pdf_for_rtf()
+        link_locations = [change_coordinates(x, self.toc_orientation) for x in link_locations]  # Change the coordinate
+        merger = PdfFileMerger()
+        merger.append("toc.pdf")
+        merger.append("tmp.pdf")
+        merger.write("tmp2.pdf")
+        merger.close()
+
+        self._create_hyperlinks(link_locations, page_locations)
+
+        self.trash += ["tmp.pdf", "tmp2.pdf", "toc.pdf"]
+
+    def set_toc_dict(self, toc_dict):
+        self.toc_dict = toc_dict
+
+    def accept_toc(self):
+        self.toc_accepted = True
+
+    def _create_hyperlinks(self, link_locations, page_locations):
+        reader = PdfFileReader("tmp2.pdf")
+        writer = PdfFileWriter()
+        for i in range(reader.getNumPages()):
+            page = reader.getPage(i)
+            writer.addPage(page)
+        for i in range(len(link_locations)):
+            toc_page = 1
+            if self.toc_orientation == "P":
+                toc_page = math.floor(i / settings["Items on vertical toc"])
+            if self.toc_orientation == "L":
+                toc_page = math.floor(i / settings["Items on horizontal toc"])
+            writer.addLink(pagenum=toc_page, pagedest=page_locations[i] - 1, rect=link_locations[i], fit="/Fit",
+                           border=[0, 0, 0])
+        with open(self.filename, 'wb') as out:
+            writer.write(out)
+
+    def _create_toc_pdf_for_rtf(self):
+        toc = compile_toc(self.chapters, self.pages, orientation=self.toc_orientation)
+        self.send_toc.emit(toc)
+        while not self.toc_accepted:
+            time.sleep(1)
+
+        pdf = PDF()
+        pdf.set_title("")
+        pdf.table_of_contents(self.toc_dict, orientation=self.toc_orientation, create_hyperlink=False)
+        pdf.output("toc.pdf", 'F')
+        link_locations, page_locations = pdf.get_link_locations()
+        pdf.close()
+        time.sleep(2)
+        return link_locations, page_locations
+
+
+
 
