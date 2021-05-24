@@ -166,7 +166,9 @@ class PDF(FPDF):
         """
         self.set_font('Courier New', '', 8)
         self.set_x(PARAMETERS["Chapter body x-offset"])
+        self.set_auto_page_break(False)
         self.multi_cell(0, PARAMETERS["Distance between lines of chapter body"], text_body)
+        self.set_auto_page_break(True)
         self.ln()
 
     def _set_footer_text(self, text):
