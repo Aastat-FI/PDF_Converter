@@ -29,9 +29,9 @@ Functionality converting Rich Text Format files is done by create_pdf_from_rtf_f
 If the user wants to generated table of contents:
 From the converted PDF only metadata we need is the chapter name for the table of contents. If user chooses to not to generate table of contents there is no need to worry about metadata. When the RTF is converted to PDF and then read as a string the string has header and footer together. With this information we can extract the chapter name with the regex:
 
-    "[\d]{4}[A-z0-9\\ /-:-().]*Program"
+    "START_WORD[A-z0-9\\ /-:-().]*END_WORD"
 
-Meaning that the "Chapter" name is somewhere between 4 numbers and *"Program"*. Word "Program" can be changed from settings.  With this and information how long each generated PDF is we can compile table of contents with the pdf_template function which was used when making *.txt file conversion. 
+Meaning that the "Chapter" name is somewhere between START_WORD and END_WORD. Both of these words can be changed from settings. If the first word is not found then program uses only the end word parameter extracts all text. With this and information how long each generated PDF is we can compile table of contents with the pdf_template function which was used when making *.txt file conversion. 
 
 If there is an error extracting "Chapter" name we set it to name of the file.
 
