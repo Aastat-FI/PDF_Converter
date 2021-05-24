@@ -5,7 +5,7 @@ This is Python based program that combines multiple *.txt or *.rtf files into FD
 The program is open source and free to use developed by [Aastat](https://aastat.com). The program is written and maintained  for the time being by @MesRoto so if you have question feel free to contact either one. 
 
 ## Running The Program
-The program has been packaged into Creator.exe that contains all the relevant packages that the program needs to run except Microsoft Word or LibreOffice for converting rtf files into pdf files. In other words if you have either Microsoft Word or LibreOffice installed there is no need to download or install anything but the Creator.exe. 
+The program has been packaged into Creator.exe that contains all the relevant packages that the program needs to run except Microsoft Word or LibreOffice for converting rtf files into pdf files. In other words you don't need to install python or any other libraries but the *.exe file needs to be in the same folder as the other *.py and settings file.
 
 When assembling PDF from the RTF files it is very important not to open backend converted (Microsoft Word or Libreoffice)
 
