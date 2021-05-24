@@ -50,15 +50,14 @@ def remove_empty_lines(block_of_text):
 
 def get_chapter_from_pdf_txt(pdf_text):
     txt = repr(pdf_text)
-    start_word = settings["RTF_conversion_last_word_in_header"]
-    end_word = settings["RTF_conversion_first_word_in_footer"]
+    start_word = settings["RTF conversion last word in header"]
+    end_word = settings["RTF conversion first word in footer"]
     try:
         found = re.search(pattern=f"(?<={start_word})([A-z0-9\\ \n-:()])*(?={end_word})", string=txt).group(0)
     except:
         found = re.search(pattern=f"([A-z0-9\\ \n-:()])*(?={end_word})", string=txt).group(0)
     found = found.replace("\\n", "")
     found = found.strip()
-    print(found)
     return found
 
 
