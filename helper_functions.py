@@ -28,14 +28,44 @@ def is_empty_line(text):
     return len(text.strip()) == 0
 
 
-def contains_data_tables(text_block):
+def get_text_blocks(text):
     """
-    Helper function to determine if there is data tables in the given text block
-    :param text_block: Python string. Data block are given from other functions
-    :return: Returns boolean if there is data tables in the text block
+    Returns text blocks that contain datatables. Text file is split to pieces from long dashed lines
+    and these are referred to blocks. Blocks either contain data tables or information such as study or program info.
+    :param text: Python string
+    :return: Block of string that contains data tables
     """
-    is_useless = "//" in text_block or "txt" in text_block
-    return not is_useless
+    symbol = "_"
+    blocks = []
+    num_lines = 0
+    different_sizes = []
+    for line in text.splitlines():
+        if symbol * 20 in line:
+            num_lines = len(line.strip())
+            different_sizes.append(num_lines)
+
+    split_re = "[" + symbol + "]" + "{" + str(num_lines) + "}"
+
+    one_size = False
+    if len(set(different_sizes)) == 1:
+        one_size = True
+
+    text_split = re.split(split_re, text)
+    if one_size:
+        for count, block in enumerate(text_split):
+            if count % 3 == 0 or count % 3 == 1:
+                continue
+            else:
+                block = remove_empty_lines(block)
+                blocks.append(block)
+    else:
+        for count, block in enumerate(text_split):
+            if count % 2 == 0:
+                continue
+            else:
+                block = remove_empty_lines(block)
+                blocks.append(block)
+    return blocks
 
 
 def remove_empty_lines(block_of_text):
