@@ -13,7 +13,7 @@ When assembling PDF from the RTF files it is very important not to open backend 
 ![Example picture 2](https://github.com/Aastat-FI/PDF_Converter/blob/master/ExamplePictures/example2.png?raw=true)
 
 ## How Does It Work?
-### *txt files:
+### *.txt files:
 Text files are broken into blocks separated by long dashed lines. There are two kinds of text blocks: blocks that contain statistics from study and blocks that contain metadata such as name of the research or program info.
 
 Program info, name of the "chapter", study name and sponsor are extracted from the metadata blocks. 
