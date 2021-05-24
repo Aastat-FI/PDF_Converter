@@ -156,7 +156,6 @@ def change_filetype(input_file, output_filetype, backend_converter='word', outpu
             word_backend.Quit()
             raise FileNotFoundError("Error opening file: format not supported or file not found")
         format_number = filetypes[output_filetype]
-        print(output_file_name, format_number)
 
         time.sleep(2)
         document.SaveAs(output_file_name, FileFormat=format_number)
@@ -299,7 +298,6 @@ class Converter(QThread):
         pdf = PDF()
         title_set = False
         pdf.set_title("")
-        print(f'Create toc: {self.create_toc}')
 
         if self.create_toc:
             toc = get_toc(self.files, self.toc_orientation)
