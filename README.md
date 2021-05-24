@@ -5,9 +5,12 @@ This is Python based program that combines multiple *.txt or *.rtf files into FD
 The program is open source and free to use developed by [Aastat](https://aastat.com). The program is written and maintained  for the time being by @MesRoto so if you have question feel free to contact either one. 
 
 ## Running The Program
-The program has been packaged into Creator.exe that contains all the relevant packages that the program needs to run except Microsoft Word or LibreOffice for converting rtf files into pdf files. In other words if you have either Microsoft Word or LibreOffice installed there is no need to download or install anything but the Creator.exe. 
+The program has been packaged into Creator.exe that contains all the relevant packages that the program needs to run except Microsoft Word or LibreOffice for converting rtf files into pdf files. In other words you don't need to install python or any other libraries but the *.exe file needs to be in the same folder as the other *.py and settings file.
 
 When assembling PDF from the RTF files it is very important not to open backend converted (Microsoft Word or Libreoffice)
+
+![Example picture 1](https://github.com/Aastat-FI/PDF_Converter/blob/master/ExamplePictures/example1.png?raw=true)
+![Example picture 2](https://github.com/Aastat-FI/PDF_Converter/blob/master/ExamplePictures/example2.png?raw=true)
 
 ## How Does It Work?
 ### *txt files:
@@ -35,5 +38,6 @@ If there is an error extracting "Chapter" name we set it to name of the file.
 After this we can join the converted PDF files and table of content file together, append the hyperlinks to new PDF and finally save the generated PDF.
 
 ## TODO:
- - Move PDF file settings to own file. 
- - Create status bar indicating how long it takes to assemble PDF from RTF files
+ - Open issue or contact aforementioned maintainers if you encounter any trouble
+ - Fix issue needing to restart program
+ - Load settings either from .csv or from .json
