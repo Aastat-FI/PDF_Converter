@@ -19,6 +19,34 @@ def get_text_from_file(file_path):
     return text
 
 
+def get_info_lines(text):
+    """
+    Gets research name from block of text
+    :param text: Python string, in the program defined as block
+    :return: Program name
+    """
+    text_lines = []
+    for row in text.splitlines():
+        if "____" in row:
+            return text_lines
+        if is_empty_line(row):
+            pass
+        text_lines.append(row)
+
+
+def get_program_info(text):
+    """
+    Returns program info text from the text block
+    :param text: Python string
+    :return: program info
+    """
+    for row in text.splitlines()[::-1]:
+        if is_empty_line(row):
+            pass
+        else:
+            return row
+
+
 def is_empty_line(text):
     """
     Helper function to check if there is any symbols on given line
@@ -35,7 +63,7 @@ def get_text_blocks(text):
     :param text: Python string
     :return: Block of string that contains data tables
     """
-    symbol = "_"
+    symbol = settings["Line symbol"]
     blocks = []
     num_lines = 0
     different_sizes = []
@@ -113,7 +141,6 @@ def compile_toc(chapters, pages, orientation):
     broken = [break_chapter_to_lines(chapter) for chapter in chapters]
     lines = sum([len(x) for x in broken])
     toc_pages = math.ceil(lines / max_items)
-    print(f'toc pages: {toc_pages}')
 
     pages.insert(0, toc_pages)
     pages = list(accumulate(pages))

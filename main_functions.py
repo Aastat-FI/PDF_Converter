@@ -8,36 +8,6 @@ from helper_functions import *
 from PyQt5.QtCore import QThread, pyqtSignal, pyqtSlot, QObject
 
 
-def get_program_info(text):
-    """
-    Returns program info text from the text block
-    :param text: Python string
-    :return: program info
-    """
-    if contains_data_tables(text):
-        raise ValueError("Text contains data tables")
-    for row in text.splitlines():
-        if "Program" in row:
-            return row.strip()
-
-
-def get_chapter_name(text):
-    """
-    Extracts "chapter name of the data"
-    :param text: Python string
-    :return: "Chapter name" of the dataset
-    """
-    if contains_data_tables(text):
-        raise ValueError("Text contains data tables")
-    row_num = 0
-    for row in text.splitlines():
-        if is_empty_line(row):
-            continue
-        row_num += 1
-        if row_num == 2:
-            return row.strip()
-
-
 def get_toc(files, toc_orientation):
     """
     Creates a dictionary that has all the chapter names and page numbers from the list of text files
@@ -49,46 +19,15 @@ def get_toc(files, toc_orientation):
     pages = []
     for file in files:
         text = get_text_from_file(file)
-        chapter_name = get_chapter_name(text)
+        info_lines = get_info_lines(text)
+        chapter_name_rows = info_lines[settings["TOC level"]:]
+        chapter_name = "\n".join(chapter_name_rows)
         chapters.append(chapter_name)
+        #print(chapter_name)
         num_pages = len(get_text_blocks(text))
         pages.append(num_pages)
     toc = compile_toc(chapters, pages, orientation=toc_orientation)
     return toc
-
-
-def get_research_name(text):
-    """
-    Gets research name from block of text
-    :param text: Python string, in the program defined as block
-    :return: Program name
-    """
-    if contains_data_tables(text):
-        raise ValueError("Text contains data tables")
-    rows = text.splitlines()
-    for row in rows:
-        if is_empty_line(row):
-            continue
-        else:
-            return row.strip()
-
-
-def get_text_blocks(text):
-    """
-    Returns text blocks that contain datatables. Text file is split to pieces from long dashed lines
-    and these are referred to blocks. Blocks either contain data tables or information such as study or program info.
-    :param text: Python string
-    :return: Block of string that contains data tables
-    """
-    blocks = []
-    text_split = re.split('[_]{90,}', text)
-    for block in text_split:
-        if not contains_data_tables(block):
-            continue
-        else:
-            block = remove_empty_lines(block)
-            blocks.append(block)
-    return blocks
 
 
 def change_coordinates(arr, orientation):
@@ -296,7 +235,6 @@ class Converter(QThread):
 
     def _create_pdf_from_txt_files(self):
         pdf = PDF()
-        title_set = False
         pdf.set_title("")
 
         if self.create_toc:
@@ -309,19 +247,20 @@ class Converter(QThread):
                 pass
             toc = self.toc_dict
             pdf.table_of_contents(toc, orientation=self.toc_orientation)
-
         for count, file in enumerate(self.files):
             text = get_text_from_file(file)
-            self.progress.emit(count + 1)
-            if not title_set:
-                research_name = get_research_name(text)
-                pdf.set_title(research_name)
-                title_set = True
+
+            info_text = get_info_lines(text)
+            header_text = "\n".join(info_text[0:settings["TOC level"]])
+            pdf.set_title(header_text.strip())
             program_info = get_program_info(text)
-            chapter_name = get_chapter_name(text)
+            chapter_name = "\n".join(info_text[settings["TOC level"]:])
+
+            self.progress.emit(count + 1)
+
             for block in get_text_blocks(text):
-                pdf.print_chapter(chapter_title=chapter_name, text_body=block,
-                                  footer_text=program_info)
+                pdf.print_chapter(chapter_title=chapter_name.strip(), text_body=block,
+                                  footer_text=program_info.strip())
         pdf.output(self.filename, 'F')
 
     def create_toc_pdf_and_append_it(self):
