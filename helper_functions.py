@@ -26,12 +26,16 @@ def get_info_lines(text):
     :return: Program name
     """
     text_lines = []
+    rows_returned = 0
     for row in text.splitlines():
-        if "____" in row:
+        print(text_lines)
+        if "____" in row or rows_returned == settings["Max header lines"] + settings["TOC level"]:
             return text_lines
         if is_empty_line(row):
-            pass
+            continue
+        rows_returned += 1
         text_lines.append(row)
+
 
 
 def get_program_info(text):
@@ -72,7 +76,11 @@ def get_text_blocks(text):
             num_lines = len(line.strip())
             different_sizes.append(num_lines)
 
-    split_re = "[" + symbol + "]" + "{" + str(num_lines) + "}"
+    print(different_sizes)
+    print(num_lines)
+
+    split_re = f"(?<!{symbol})[{symbol}]{'{'}{num_lines}{'}'}(?!{symbol})"
+    print(split_re)
 
     one_size = False
     if len(set(different_sizes)) == 1:
@@ -81,6 +89,7 @@ def get_text_blocks(text):
     text_split = re.split(split_re, text)
     if one_size:
         for count, block in enumerate(text_split):
+            print(f"BLOCK{count}: \n {block}")
             if count % 3 == 0 or count % 3 == 1:
                 continue
             else:
@@ -88,11 +97,14 @@ def get_text_blocks(text):
                 blocks.append(block)
     else:
         for count, block in enumerate(text_split):
+            #print(f"BLOCK{count}: \n {block}")
             if count % 2 == 0:
                 continue
             else:
                 block = remove_empty_lines(block)
                 blocks.append(block)
+                print(block)
+                print("60" * 60)
     return blocks
 
 
