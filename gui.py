@@ -46,6 +46,7 @@ class MainWindow(QWidget):
         self.main_layout.addLayout(self.tmp_layout)
         text = ""
         for key, value in toc_dict.items():
+            key = key.replace("\n", "").replace("\r", "").strip()
             text += f'{key}: {value}\n'
         self.toc_text_window.setText(text)
 
