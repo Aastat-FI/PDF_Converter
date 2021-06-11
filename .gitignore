@@ -155,3 +155,6 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+/.idea/shelf/Uncommitted_changes_before_Update_at_24_05_2021_9_17_[Default_Changelist]/shelved.patch
+/testiluokka.py
+/testing.py
