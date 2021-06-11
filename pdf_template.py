@@ -155,7 +155,7 @@ class PDF(FPDF):
         w = self.get_string_width(label) + 6
         self.set_x((self.w - w) / 2)
         self.cell(0, 6, label)
-        self.ln(PARAMETERS["Distance between chapter title and chapter body"])
+        self.ln(2)
         self._add_empty_line()
 
     def _chapter_body(self, text_body):
@@ -165,8 +165,9 @@ class PDF(FPDF):
         :return:
         """
         self.set_font('Courier New', '', 8)
-        self.set_x(PARAMETERS["Chapter body x-offset"])
+        self.set_y(PARAMETERS["Chapter body y-offset"])
         self.set_auto_page_break(False)
+        self.set_x(PARAMETERS["Chapter body x-offset"])
         self.multi_cell(0, PARAMETERS["Distance between lines of chapter body"], text_body)
         self.set_auto_page_break(True)
         self.ln()
