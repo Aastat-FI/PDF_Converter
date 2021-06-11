@@ -1,4 +1,5 @@
 
+
 # Introduction
 This is Python based program that combines multiple *.txt or *.rtf files into FDA specified format. The program also has a support for creating a table of contents with hyperlinks leading to chapters.  
 
@@ -36,6 +37,42 @@ Meaning that the "Chapter" name is somewhere between START_WORD and END_WORD. Bo
 If there is an error extracting "Chapter" name we set it to name of the file.
 
 After this we can join the converted PDF files and table of content file together, append the hyperlinks to new PDF and finally save the generated PDF.
+
+## Settings.csv
+In this file you can change multiple settings related to parsing and output of the pdf document.
+
+Some settings you need to check before converting your document:
+
+ - "First word in footer": This needs to be the first unique word that you have after your tables.
+	 - It is used in parsing the *.txt files when you don't have two linebreaks (see related setting) and trying to find title of the *.rtf file automatically
+ - "Last word in header": This needs to be the first unique word that you have before your tables.
+	 - Is needed when trying to find the title for the *.rtf files automatically
+ - "Max header lines": Number of lines that the header may contain.
+	 -  Used only in *.txt file conversion. If you don't have linebreak after your title you need to set this to relevant number. If there is a linebreak and you are having trouble set this to a large number
+ - "Two linebreaks": Set to True when you have two linebreaks in each page. 
+	 - Only used with *.txt files
+ - "Line symbol": Symbol that tells the program what linebreak is used.
+ - "TOC level": If there is text before your title set this to a number of rows that the text has (eg. sponsor or study information). If the document starts with title text set this to 0
+	 - Only used with *.txt files
+
+Graphical settings:
+
+ - "Header y-offset": Millimeters from top of the page to header 
+ - "Distance between header and chapter title": Millimeters from header to title of the page
+ - "Chapter body x-offset": Millimeters from left side of the page to the text body
+ - "Chapter body y-offset": Millimeters from top of the page to the text body
+ - "Footer y-offset from bottom": Millimeters from the bottom of the page to footer. Must be negative
+ -  "Distance between lower-dashed line and footer": Milllimeters from the lower linebreak to footer
+ -   "TOC x-offset" Millimeters from the left side of the page to the table of contents text 
+ - "Distance between lines of chapter body": Millimeters between lines in text body
+ -   "Toc font size": Font size for table of contents. 
+	 - You must adjust "Items on vertical/horizontal toc" and "Vertical/Horizontal Toc characters per line to reflect the changes. 
+	 - Probably trial and error  
+ - "PDF name": Name of the compiled pdf
+ -  "Items on horizontal/vertical toc": Needed to adjust if you play with font size. 
+ - "Vertical/Horizontal Toc characters per line": Same as above
+
+
 
 ## TODO:
  - Open issue or contact aforementioned maintainers if you encounter any trouble
