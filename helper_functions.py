@@ -28,14 +28,12 @@ def get_info_lines(text):
     text_lines = []
     rows_returned = 0
     for row in text.splitlines():
-        print(text_lines)
         if "____" in row or rows_returned == settings["Max header lines"] + settings["TOC level"]:
             return text_lines
         if is_empty_line(row):
             continue
         rows_returned += 1
         text_lines.append(row)
-
 
 
 def get_program_info(text):
@@ -76,20 +74,19 @@ def get_text_blocks(text):
             num_lines = len(line.strip())
             different_sizes.append(num_lines)
 
-    print(different_sizes)
-    print(num_lines)
-
     split_re = f"(?<!{symbol})[{symbol}]{'{'}{num_lines}{'}'}(?!{symbol})"
-    print(split_re)
 
     one_size = False
     if len(set(different_sizes)) == 1:
         one_size = True
+    if settings["Two linebreaks"] == "False":
+        text = fix_format(text, max(different_sizes) + 1)
+        split_re = f"(?<!{symbol})[{symbol}]{'{'}{max(different_sizes) + 1}{'}'}(?!{symbol})"
+        one_size = False
 
     text_split = re.split(split_re, text)
     if one_size:
         for count, block in enumerate(text_split):
-            print(f"BLOCK{count}: \n {block}")
             if count % 3 == 0 or count % 3 == 1:
                 continue
             else:
@@ -97,15 +94,27 @@ def get_text_blocks(text):
                 blocks.append(block)
     else:
         for count, block in enumerate(text_split):
-            #print(f"BLOCK{count}: \n {block}")
             if count % 2 == 0:
                 continue
             else:
                 block = remove_empty_lines(block)
                 blocks.append(block)
-                print(block)
-                print("60" * 60)
     return blocks
+
+
+def fix_format(text, num):
+    pieces = text.splitlines()
+    new = []
+    for i, row in enumerate(pieces):
+        try:
+            if settings["First word in footer"] in pieces[i + 1]:
+                new.append(settings["Line symbol"] * num)
+            if settings["First word in footer"] in pieces[i - 4]:
+                new.append(settings["Line symbol"] * num)
+        except IndexError:
+            pass
+        new.append(row)
+    return "\n".join(new)
 
 
 def remove_empty_lines(block_of_text):
@@ -120,8 +129,8 @@ def remove_empty_lines(block_of_text):
 
 def get_chapter_from_pdf_txt(pdf_text):
     txt = repr(pdf_text)
-    start_word = settings["RTF conversion last word in header"]
-    end_word = settings["RTF conversion first word in footer"]
+    start_word = settings["Last word in header"]
+    end_word = settings["First word in footer"]
     try:
         found = re.search(pattern=f"(?<={start_word})([A-z0-9\\ \n-:()])*(?={end_word})", string=txt).group(0)
     except:

@@ -2,14 +2,13 @@ Setting,Value
 Header y-offset,20
 Distance between header and chapter title,5
 Chapter body x-offset,40
-Distance between chapter title and chapter body,4
 Footer y-offset from bottom,-40
 Distance between lower-dashed line and footer,4
 TOC x-offset,30
 Distance between lines of chapter body,3.3
 Toc font size,12
-RTF conversion first word in footer,Program
-RTF conversion last word in header,2021
+First word in footer,Program
+Last word in header,2021
 PDF name,compiled.pdf
 Items on horizontal toc,17
 Items on vertical toc,27
@@ -17,3 +16,6 @@ Vertical Toc characters per line,45
 Horizontal Toc characters per line,70
 TOC level,1
 Line symbol,_
+Max header lines,1
+Two linebreaks,True
+Chapter body y-offset,33
