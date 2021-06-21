@@ -1,25 +1,28 @@
 from PyQt5.QtCore import QThread
 from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QWidget, QFileDialog, QRadioButton, \
-    QButtonGroup, QTextBrowser, QCheckBox, QProgressBar, QTextEdit, QHBoxLayout
+    QButtonGroup, QTextBrowser, QCheckBox, QProgressBar, QTextEdit, QHBoxLayout, QLineEdit, QDoubleSpinBox, QSpinBox
+from PyQt5.QtGui import QCloseEvent
 from main_functions import Converter
 from settings import get_parameters
+import json
 
-parameters = get_parameters()
 
-
-### TODO: COMMENT
 # noinspection PyArgumentList
 class MainWindow(QWidget):
     """
     Class for GUI functionality of the program.
     """
+
     def __init__(self):
         super().__init__()
         self.main_layout = QHBoxLayout(self)
         self.converter = Converter()
+        self.parameters = None
         self.setWindowTitle("PDF compiler")
+        self.settings_window = None
 
         self.create_base_ui()
+        self.update_parameters()
 
     def create_thread(self):
         """
@@ -38,6 +41,9 @@ class MainWindow(QWidget):
             self.thread.finished.connect(self.thread.deleteLater)
             self.converter.progress.connect(self._on_progress_update)
             self.converter.send_toc.connect(self.create_toc_show_window)
+
+    def update_parameters(self):
+        self.parameters = get_parameters()
 
     def create_toc_show_window(self, toc_dict):
         """
@@ -121,8 +127,10 @@ class MainWindow(QWidget):
 
         self.save_location_button = QPushButton("Select file save location", clicked=lambda: self._set_save_location())
         self.save_file_label = QLabel("Save location not yet selected")
+        self.open_settings_button = QPushButton("Open settings", clicked=lambda: self._open_settings_window())
 
         self.base_layout.addWidget(self.select_file_label)
+        self.base_layout.addWidget(self.open_settings_button)
         self.base_layout.addWidget(self.rtf_button)
         self.base_layout.addWidget(self.txt_button)
         self.base_layout.addWidget(self.my_button)
@@ -180,8 +188,8 @@ class MainWindow(QWidget):
         dialog.setFileMode(QFileDialog.Directory)
         if dialog.exec_() == QFileDialog.Accepted:
             file = dialog.selectedFiles()[0]
-            self.converter.set_filename(file + "/" + parameters["PDF name"])
-            self.save_file_label.setText(f"Save file location \n{file}/{parameters['PDF name']}.pdf")
+            self.converter.set_filename(file + "/" + self.parameters["PDF name"])
+            self.save_file_label.setText(f"Save file location \n{file}/{self.parameters['PDF name']}.pdf")
             self.compile_button.setText("Compile from selected files")
 
     def _update_progress_bar_length(self):
@@ -229,3 +237,76 @@ class MainWindow(QWidget):
                                           "")
         self._update_text_window("Compiling PDF from rtf files. \nThis may take some time \nDo not open "
                                  "the selected engine while this program is running")
+
+    def _open_settings_window(self):
+        self.settings_window = SettingsWindow()
+        self.settings_window.show()
+
+
+class SettingsWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.update_parameters()
+        self.create_layout()
+
+    def update_parameters(self):
+        self.parameters = get_parameters()
+
+    def create_layout(self):
+        self.label_layout = QVBoxLayout()
+        self.key_layout = QVBoxLayout()
+
+        for key, value in self.parameters.items():
+            label = QLabel(key)
+            setting_box = None
+            if key == "First word in footer" or key == "Last word in header":
+                setting_box = QLineEdit()
+                setting_box.setText(str(value))
+            elif key == "Two linebreaks":
+                setting_box = QCheckBox()
+                if value:
+                    setting_box.setChecked(True)
+            elif key == "TOC level" or key == "Max header lines" or key == "TOC font size":
+                setting_box = QSpinBox()
+                setting_box.setValue(value)
+            elif isinstance(value, int) or isinstance(value, float):
+                setting_box = QDoubleSpinBox()
+                setting_box.setDecimals(2)
+                setting_box.setMaximum(150)
+                setting_box.setMinimum(-150)
+                setting_box.setSingleStep(0.1)
+                setting_box.setValue(value)
+            elif isinstance(value, str) and value != "True" and value != "False":
+                setting_box = QLineEdit()
+                setting_box.setText(value)
+
+            setting_box.setObjectName(key)
+            self.label_layout.addWidget(label)
+            self.key_layout.addWidget(setting_box)
+
+        combined_layout = QHBoxLayout()
+        combined_layout.addLayout(self.label_layout)
+        combined_layout.addLayout(self.key_layout)
+        self.setLayout(combined_layout)
+
+    def save_settings(self):
+        len_settings = self.key_layout.count()
+        new_settings = {}
+        for i in range(len_settings):
+            value = None
+            widget = self.key_layout.itemAt(i).widget()
+            if isinstance(widget, QCheckBox):
+                value = widget.isChecked()
+            elif isinstance(widget, QLineEdit):
+                value = widget.text()
+            elif isinstance(widget, QDoubleSpinBox) or isinstance(widget, QSpinBox):
+                value = widget.value()
+            new_settings[widget.objectName()] = value
+        with open('settings.json', 'w') as fp:
+            json.dump(new_settings, fp, sort_keys=True, indent=4)
+
+        pass
+
+    def closeEvent(self, a0: QCloseEvent):
+        self.save_settings()
+        pass
