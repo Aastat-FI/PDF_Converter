@@ -23,7 +23,6 @@ def get_toc(files, toc_orientation):
         chapter_name_rows = info_lines[settings["TOC level"]:]
         chapter_name = "\n".join(chapter_name_rows)
         chapters.append(chapter_name)
-        #print(chapter_name)
         num_pages = len(get_text_blocks(text))
         pages.append(num_pages)
     toc = compile_toc(chapters, pages, orientation=toc_orientation)
@@ -53,6 +52,7 @@ def change_coordinates(arr, orientation):
     else:
         raise ValueError("Unknown page orientation")
     return new
+
 
 ### TODO: ABILITY TO CONVERT MULTIPLE FILES WITHOUT CLOSING WORD IN BETWEEN
 def change_filetype(input_file, output_filetype, backend_converter='word', output_file_name=None):
@@ -113,6 +113,9 @@ def change_filetype(input_file, output_filetype, backend_converter='word', outpu
 
 
 class Converter(QThread):
+    """
+    Main class for file conversion. This class is created and controlled by gui.py
+    """
     finished = pyqtSignal()
     started = pyqtSignal()
     progress = pyqtSignal(int)
@@ -172,6 +175,12 @@ class Converter(QThread):
         return not (self.filename is None)
 
     def convert(self):
+        """
+        Main function to make the conversion. When the parameters are set this higher level function calls either
+        rtf creating function or pdf creating function. Also deletes temporary trash files that rtf conversion
+        creates
+        :return:
+        """
         if not self.filetype or not self.files:
             raise ValueError("Filetype, filename or files has not been set")
         if self.filetype == "rtf":
@@ -188,6 +197,11 @@ class Converter(QThread):
         self.finished.emit()
 
     def _delete_trash(self):
+        """
+        Deletes the temporary files created by conversions. At the moment only *.rtf file conversion creates temporary
+        files
+        :return:
+        """
         for file in self.trash:
             try:
                 os.remove(file)
@@ -200,9 +214,14 @@ class Converter(QThread):
         return self.files_set() and self.filename_set() and self.filetype_set()
 
     def _create_pdf_from_rtf_files(self):
+        """
+        Main function to create pdf file from set of rtf files. Adding the hyperlinks is done by other function
+        :return:
+        """
         pdfs = []
         self.progress.emit(0)
         for count, file in enumerate(self.files):
+            #  Changes the rtf tiles to pdf files using change_filetype helper function
             changed_file = change_filetype(file, "pdf", self.engine)
             pdfs.append(changed_file)
             self.progress.emit(count + 1)
@@ -210,13 +229,17 @@ class Converter(QThread):
         pages = []
         chapters = []
         for file in pdfs:
+            #  Loop for appending the created pdf files together.
             read_pdf = PdfFileReader(file)
             txt = read_pdf.getPage(0)
             page_content = txt.extractText()
             try:
+                #  Tries to get "chapter name from the text contents of the pdf
                 chapter = helper_functions.get_chapter_from_pdf_txt(page_content)
                 chapters.append(chapter)
             except:
+                #  If it doesn't find any "chapter" names from the pdf text then it pulls the chapter name from the
+                #  name of the pdf
                 chapter = os.path.basename(file)
                 chapter = chapter.split(".")[0]
                 chapter = chapter.replace("_", " ")
@@ -234,28 +257,34 @@ class Converter(QThread):
         self.trash += pdfs
 
     def _create_pdf_from_txt_files(self):
+        """
+        Main function from creating the pdf file from *.txt files. Called by convert()
+        :return:
+        """
         pdf = PDF()
         pdf.set_title("")
 
         if self.create_toc:
-            toc = get_toc(self.files, self.toc_orientation)
-            self.toc_dict = toc
-            self.send_toc.emit(toc)
+            #  Extracts table of contents from "chapter names" and sends it for confirmation to gui.py. Also creates
+            #  the table of contents page
+            self.toc_dict = get_toc(self.files, self.toc_orientation)
+            self.send_toc.emit(self.toc_dict)
 
             while not self.toc_accepted:
+                # Waits for user confirmation
                 time.sleep(1)
                 pass
-            toc = self.toc_dict
-            pdf.table_of_contents(toc, orientation=self.toc_orientation)
-        for count, file in enumerate(self.files):
-            text = get_text_from_file(file)
+            pdf.table_of_contents(self.toc_dict, orientation=self.toc_orientation)
 
+        for count, file in enumerate(self.files):
+            #  Loop creating the pages of the pdf file from *.txt files. Loops files, gets the text then gets required
+            #  information from the given text and sends it to pdf_template class
+            text = get_text_from_file(file)
             info_text = get_info_lines(text)
             header_text = "\n".join(info_text[0:settings["TOC level"]])
             pdf.set_title(header_text.strip())
             program_info = get_program_info(text)
             chapter_name = "\n".join(info_text[settings["TOC level"]:])
-
             self.progress.emit(count + 1)
 
             for block in get_text_blocks(text):
@@ -264,8 +293,13 @@ class Converter(QThread):
         pdf.output(self.filename, 'F')
 
     def create_toc_pdf_and_append_it(self):
+        """
+        Appends table of contents pdf and the text pages together. Then calls function to add the hyperlinks to the
+        the hyperlinks to table of contents. Only used by rtf conversion
+        :return:
+        """
         link_locations, page_locations = self._create_toc_pdf_for_rtf()
-        link_locations = [change_coordinates(x, self.toc_orientation) for x in link_locations]  # Change the coordinate
+        link_locations = [change_coordinates(x, self.toc_orientation) for x in link_locations]  # Coordinate change
         merger = PdfFileMerger()
         merger.append("toc.pdf")
         merger.append("tmp.pdf")
@@ -283,13 +317,23 @@ class Converter(QThread):
         self.toc_accepted = True
 
     def _create_hyperlinks(self, link_locations, page_locations):
+        """
+        Helper function for appending the hyperlinks. Loops through the the links and adds them to the table of contents
+        page. Only used by rtf conversion
+        :param link_locations:
+        :param page_locations:
+        :return:
+        """
         reader = PdfFileReader("tmp2.pdf")
         writer = PdfFileWriter()
         for i in range(reader.getNumPages()):
+            #  We need to read the temporary pdf and then append the links to it. This could also be moved to create_
+            #  toc_and_append_it function but the function grows a bit too large.
             page = reader.getPage(i)
             writer.addPage(page)
         for i in range(len(link_locations)):
             toc_page = 1
+            #  If statements give the page in which to add the hyperlink
             if self.toc_orientation == "P":
                 toc_page = math.floor(i / settings["Items on vertical toc"])
             if self.toc_orientation == "L":
@@ -300,9 +344,14 @@ class Converter(QThread):
             writer.write(out)
 
     def _create_toc_pdf_for_rtf(self):
+        """
+        Super short helper function for creating the table of contents page for the rtf conversion. Functionality could/
+        should be moved to other funtion
+        :return:
+        """
         toc = compile_toc(self.chapters, self.pages, orientation=self.toc_orientation)
         self.send_toc.emit(toc)
-        while not self.toc_accepted:
+        while not self.toc_accepted:  # Waits for user confirmation
             time.sleep(1)
 
         pdf = PDF()
@@ -313,7 +362,3 @@ class Converter(QThread):
         pdf.close()
         time.sleep(2)
         return link_locations, page_locations
-
-
-
-

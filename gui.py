@@ -10,10 +10,11 @@ parameters = get_parameters()
 ### TODO: COMMENT
 # noinspection PyArgumentList
 class MainWindow(QWidget):
+    """
+    Class for GUI functionality of the program.
+    """
     def __init__(self):
         super().__init__()
-        self.filetype_set = False
-        self.save_location = ""
         self.main_layout = QHBoxLayout(self)
         self.converter = Converter()
         self.setWindowTitle("PDF compiler")
@@ -21,6 +22,10 @@ class MainWindow(QWidget):
         self.create_base_ui()
 
     def create_thread(self):
+        """
+        Creates a thread for converter so the application doesn't freeze while converting
+        :return:
+        """
         try:
             self.thread.isFinished()
         except:
@@ -35,6 +40,11 @@ class MainWindow(QWidget):
             self.converter.send_toc.connect(self.create_toc_show_window)
 
     def create_toc_show_window(self, toc_dict):
+        """
+        Creates the window where user can change and accept the proposed table of contents
+        :param toc_dict:
+        :return:
+        """
         self._update_text_window("Please accept the proposed table of contents")
         self.toc_text_window = QTextEdit()
         self.toc_text_window.resize(400, 200)
@@ -51,6 +61,11 @@ class MainWindow(QWidget):
         self.toc_text_window.setText(text)
 
     def accept_toc(self):
+        """
+        Gets the text from the table of contents window, converts it into a dictionary and returns to the converter
+        class
+        :return:
+        """
         text = self.toc_text_window.toPlainText()
         df = {}
         for line in text.splitlines():
@@ -69,6 +84,10 @@ class MainWindow(QWidget):
         self._update_text_window("Creating the PDF. Just a second")
 
     def create_base_ui(self):
+        """
+        Creates the base window
+        :return:
+        """
         self.base_layout = QVBoxLayout(self)
         self.label_above_text_box = QLabel("Selected files:")
         self.big_text_box = QTextBrowser()
@@ -162,7 +181,7 @@ class MainWindow(QWidget):
         if dialog.exec_() == QFileDialog.Accepted:
             file = dialog.selectedFiles()[0]
             self.converter.set_filename(file + "/" + parameters["PDF name"])
-            self.save_file_label.setText(f"Save file location \n{file}/compiled.pdf")
+            self.save_file_label.setText(f"Save file location \n{file}/{parameters['PDF name']}.pdf")
             self.compile_button.setText("Compile from selected files")
 
     def _update_progress_bar_length(self):
@@ -175,6 +194,10 @@ class MainWindow(QWidget):
         self.layout().removeWidget(self.progress_bar)
 
     def _compile(self):
+        """
+        This function calls the converter to start the file conversion
+        :return:
+        """
         self.converter.set_create_toc(self.toc_button.isChecked())
         if not self.converter.filename_set():
             self.compile_button.setText("Compile from selected files\n Select save location first!")

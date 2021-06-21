@@ -103,6 +103,12 @@ def get_text_blocks(text):
 
 
 def fix_format(text, num):
+    """
+    If there is not two linebreaks (_____ lines etc.) this function creates one
+    :param text: Text where to add the linebreak
+    :param num: Number of symbols to add
+    :return: Returns the modified text
+    """
     pieces = text.splitlines()
     new = []
     for i, row in enumerate(pieces):
@@ -128,6 +134,12 @@ def remove_empty_lines(block_of_text):
 
 
 def get_chapter_from_pdf_txt(pdf_text):
+    """
+    Helper function to extract the "chapter name" from the text document. Needed in rtf conversion
+    :param pdf_text: Text from the pdf file. By default it connects header - chapter- footer - text body so we can
+    extract the chapter name with regex if we know the last word in header and first word in footer
+    :return: Returns the "chapter name"
+    """
     txt = repr(pdf_text)
     start_word = settings["Last word in header"]
     end_word = settings["First word in footer"]
@@ -141,6 +153,12 @@ def get_chapter_from_pdf_txt(pdf_text):
 
 
 def break_chapter_to_lines(chapter, orientation="P"):
+    """
+    Helper function to break long lines of text into shorter ones. Used when creating table of contents
+    :param chapter: Chapter name text
+    :param orientation: Page orientation
+    :return: Returns the broken lines
+    """
     if orientation == "P":
         lines = textwrap.wrap(chapter, settings["Vertical Toc characters per line"], break_long_words=False)
     else:

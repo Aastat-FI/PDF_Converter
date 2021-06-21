@@ -73,9 +73,17 @@ class PDF(FPDF):
                 self.ln(8)
 
     def get_link_locations(self):
+        """
+        Helper function to get link locations so we can add them later
+        :return:
+        """
         return self.link_locations, self.link_page
 
     def text_header(self):
+        """
+        Prints the header of the text body pages.
+        :return:
+        """
         self.set_font('Courier New', '', 8)
         self.set_y(PARAMETERS["Header y-offset"])
         w = self.get_string_width(self.title) + 6
@@ -84,6 +92,11 @@ class PDF(FPDF):
         self.ln(PARAMETERS["Distance between header and chapter title"])
 
     def toc_header(self):
+        """
+        Creates the header for table of contents page. By default only prints "Table of Contents" and the line
+        below it
+        :return:
+        """
         self.set_font('Courier New', '', 16)
         self.set_y(PARAMETERS["Header y-offset"])
         self.set_x(PARAMETERS["TOC x-offset"])
