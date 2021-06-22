@@ -7,16 +7,16 @@
     "First word in footer": "Program",
     "Footer y-offset from bottom": -40.0,
     "Header y-offset": 21.0,
-    "Horizontal Toc characters per line": 70.0,
-    "Items on horizontal toc": 17.0,
-    "Items on vertical toc": 27.0,
-    "Last word in header": "2020",
+    "Horizontal Toc characters per line": 70,
+    "Items on horizontal toc": 17,
+    "Items on vertical toc": 27,
+    "Last word in header": "Sas",
     "Line symbol": "_",
     "Max header lines": 1,
-    "PDF name": "compiled.pdf",
+    "PDF name": "compiled",
     "TOC font size": 12,
     "TOC level": 1,
     "TOC x-offset": 40.0,
-    "Two linebreaks": true,
-    "Vertical Toc characters per line": 45.0
+    "Two linebreaks": false,
+    "Vertical Toc characters per line": 45
 }

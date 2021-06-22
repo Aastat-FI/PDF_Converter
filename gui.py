@@ -1,13 +1,19 @@
-from PyQt5.QtCore import QThread
+from PyQt5.QtCore import QThread, QUrl
 from PyQt5.QtWidgets import QVBoxLayout, QLabel, QPushButton, QWidget, QFileDialog, QRadioButton, \
-    QButtonGroup, QTextBrowser, QCheckBox, QProgressBar, QTextEdit, QHBoxLayout, QLineEdit, QDoubleSpinBox, QSpinBox
-from PyQt5.QtGui import QCloseEvent
+    QButtonGroup, QTextBrowser, QCheckBox, QProgressBar, QTextEdit, QHBoxLayout, QLineEdit, QDoubleSpinBox, QSpinBox, \
+    QMenu, QMenuBar, QMainWindow, QAction
+from PyQt5.QtGui import QCloseEvent, QDesktopServices
 from main_functions import Converter
 from settings import get_parameters
 import json
 
 
 # noinspection PyArgumentList
+def _open_github():
+    url = QUrl("https://github.com/Aastat-FI/PDF_Converter")
+    QDesktopServices.openUrl(url)
+
+
 class MainWindow(QWidget):
     """
     Class for GUI functionality of the program.
@@ -15,14 +21,34 @@ class MainWindow(QWidget):
 
     def __init__(self):
         super().__init__()
-        self.main_layout = QHBoxLayout(self)
+        self.window_layout = QVBoxLayout(self)
+        self.main_layout = QHBoxLayout()
         self.converter = Converter()
         self.parameters = None
         self.setWindowTitle("PDF compiler")
         self.settings_window = None
+        self.menubar = QMenuBar()
 
+        self.create_menubar()
         self.create_base_ui()
         self.update_parameters()
+        self.window_layout.addLayout(self.main_layout)
+        self.show()
+
+    def create_menubar(self):
+        menubar = self.menubar
+        setting_menu = menubar.addMenu("&Settings")
+        help_menu = menubar.addMenu("&Help")
+
+        open_settings_action = QAction('Open settings', self)
+        open_settings_action.triggered.connect(self._open_settings_window)
+        setting_menu.addAction(open_settings_action)
+
+        open_github_action = QAction('Open github', self)
+        open_github_action.triggered.connect(_open_github)
+        help_menu.addAction(open_github_action)
+
+        self.window_layout.addWidget(menubar)
 
     def create_thread(self):
         """
@@ -127,10 +153,8 @@ class MainWindow(QWidget):
 
         self.save_location_button = QPushButton("Select file save location", clicked=lambda: self._set_save_location())
         self.save_file_label = QLabel("Save location not yet selected")
-        self.open_settings_button = QPushButton("Open settings", clicked=lambda: self._open_settings_window())
 
         self.base_layout.addWidget(self.select_file_label)
-        self.base_layout.addWidget(self.open_settings_button)
         self.base_layout.addWidget(self.rtf_button)
         self.base_layout.addWidget(self.txt_button)
         self.base_layout.addWidget(self.my_button)
@@ -150,7 +174,6 @@ class MainWindow(QWidget):
         self.progress_bar.setValue(0)
         self.base_layout.addWidget(self.progress_bar)
         self.main_layout.addLayout(self.base_layout)
-        self.show()
 
     def _select_files(self):
         dialog = QFileDialog()
@@ -183,6 +206,7 @@ class MainWindow(QWidget):
         self.converter.set_toc_orientation(orientation)
 
     def _set_save_location(self):
+        self.update_parameters()
         dialog = QFileDialog()
         dialog.setOption(QFileDialog.ShowDirsOnly, True)
         dialog.setFileMode(QFileDialog.Directory)
@@ -246,6 +270,7 @@ class MainWindow(QWidget):
 class SettingsWindow(QWidget):
     def __init__(self):
         super().__init__()
+        self.setWindowTitle("Compiler settings")
         self.update_parameters()
         self.create_layout()
 
@@ -256,6 +281,15 @@ class SettingsWindow(QWidget):
         self.label_layout = QVBoxLayout()
         self.key_layout = QVBoxLayout()
 
+        print("hola")
+
+        int_keys = ["TOC level",
+                      "Max header lines",
+                      "TOC font size",
+                      "Items on vertical toc",
+                      "Items on horizontal toc",
+                      "Horizontal Toc characters per line",
+                      "Vertical Toc characters per line"]
         for key, value in self.parameters.items():
             label = QLabel(key)
             setting_box = None
@@ -266,7 +300,7 @@ class SettingsWindow(QWidget):
                 setting_box = QCheckBox()
                 if value:
                     setting_box.setChecked(True)
-            elif key == "TOC level" or key == "Max header lines" or key == "TOC font size":
+            elif key in int_keys:
                 setting_box = QSpinBox()
                 setting_box.setValue(value)
             elif isinstance(value, int) or isinstance(value, float):
@@ -302,6 +336,7 @@ class SettingsWindow(QWidget):
             elif isinstance(widget, QDoubleSpinBox) or isinstance(widget, QSpinBox):
                 value = widget.value()
             new_settings[widget.objectName()] = value
+
         with open('settings.json', 'w') as fp:
             json.dump(new_settings, fp, sort_keys=True, indent=4)
 
@@ -309,4 +344,5 @@ class SettingsWindow(QWidget):
 
     def closeEvent(self, a0: QCloseEvent):
         self.save_settings()
+        self.update_parameters()
         pass
